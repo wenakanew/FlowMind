@@ -1,0 +1,180 @@
+﻿[dotenv@17.3.1] injecting env (38) from .env -- tip: ΓÜÖ∩╕Å  suppress all logs with { quiet: true }
+Testing Notion Context Layer...
+
+node.exe : 
+@notionhq/client warn: 
+request fail {
+At C:\Program Files\nod
+ejs\npx.ps1:29 char:3
++   & $NODE_EXE 
+$NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (@notionhq/cli   
+ ent warn: request     
+fail {:String) [],     
+RemoteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+  code: 
+'object_not_found',
+  message: 'Could not 
+find database with ID: 
+6bf1667a-a7c7-42cb-9752
+-970e11dec166. Make 
+sure the relevant 
+pages and databases 
+are shared with your 
+integration 
+"FlowMind".',
+  attempt: 0,
+  requestId: '432f3310-
+bde1-4ec2-a870-b8457d22
+2e82'
+}
+Γ¥î Failed to interact 
+with Notion:
+APIResponseError: 
+Could not find 
+database with ID: 6bf16
+67a-a7c7-42cb-9752-970e
+11dec166. Make sure 
+the relevant pages and 
+databases are shared 
+with your integration 
+"FlowMind".
+    at 
+buildRequestError (C:\U
+sers\Administrator\Desk
+top\FlowMind\node_modul
+es\@notionhq\client\src
+\errors.ts:311:12)
+    at Client.executeSi
+ngleRequest (C:\Users\A
+dministrator\Desktop\Fl
+owMind\node_modules\@no
+tionhq\client\src\Clien
+t.ts:432:30)
+    at process.processT
+icksAndRejections (node
+:internal/process/task_
+queues:105:5)
+    at async Client.exe
+cuteWithRetry (C:\Users
+\Administrator\Desktop\
+FlowMind\node_modules\@
+notionhq\client\src\Cli
+ent.ts:377:16)
+    at async getTasks (
+C:\Users\Administrator\
+Desktop\FlowMind\lib\no
+tion.ts:83:22)
+    at async main (C:\U
+sers\Administrator\Desk
+top\FlowMind\scripts\te
+st-notion.ts:11:23) {
+  code: 
+'object_not_found',
+  status: 404,
+  headers: Headers {
+    date: 'Sun, 15 Mar 
+2026 15:36:05 GMT',
+    'content-type': 
+'application/json; 
+charset=utf-8',
+    
+'transfer-encoding': 
+'chunked',
+    connection: 
+'keep-alive',
+    'cf-ray': 
+'9dcc9775da2cb196-NBO',
+    'cf-cache-status': 
+'DYNAMIC',
+    etag: 'W/"166-mxNLt
+YcN0KAvKd+1JiS/LeaNclY"
+',
+    server: 
+'cloudflare',
+    'strict-transport-s
+ecurity': 
+'max-age=31536000; 
+includeSubDomains; 
+preload',
+    vary: 
+'Accept-Encoding',
+    'content-security-p
+olicy': "default-src 
+'none'",
+    'referrer-policy': 
+'strict-origin-when-cro
+ss-origin',
+    'x-content-type-opt
+ions': 'nosniff',
+    'x-dns-prefetch-con
+trol': 'off',
+    
+'x-download-options': 
+'noopen',
+    'x-frame-options': 
+'SAMEORIGIN',
+    
+'x-notion-request-id': 
+'432f3310-bde1-4ec2-a87
+0-b8457d222e82',
+    'x-permitted-cross-
+domain-policies': 
+'none',
+    
+'x-xss-protection': 
+'0',
+    'set-cookie': '__cf
+_bm=kh3ORytBKW5Azp1d8ZL
+sKKH_XyWOL45ikUSpncKbZx
+Q-1773588964.780194-1.0
+.1.1-jGP1IkmizOcv_NzmGF
+7uU5k289Hh9CkkW6ajl5jIU
+FqDkJoaUmoNG_u7nh6LyVlW
+_hQo1LYl0XtGYa2.3AxesgY
+bcDYWJ337TL_ddsWLzF4dER
+akLDM3.3Aw2MVVTzqL; 
+HttpOnly; Secure; 
+Path=/; 
+Domain=notion.com; 
+Expires=Sun, 15 Mar 
+2026 16:06:05 GMT',
+    
+'content-encoding': 
+'gzip',
+    'alt-svc': 
+'h3=":443"; ma=86400'
+  },
+  body: '{"object":"err
+or","status":404,"code"
+:"object_not_found","me
+ssage":"Could not find 
+database with ID: 6bf16
+67a-a7c7-42cb-9752-970e
+11dec166. Make sure 
+the relevant pages and 
+databases are shared 
+with your integration \
+\"FlowMind\\".","additi
+onal_data":{"integratio
+n_id":"324448de-de95-81
+e0-ad17-0027fcd99407"},
+"request_id":"432f3310-
+bde1-4ec2-a870-b8457d22
+2e82"}',
+  additional_data: { 
+integration_id: '324448
+de-de95-81e0-ad17-0027f
+cd99407' },
+  request_id: '432f3310
+-bde1-4ec2-a870-b8457d2
+22e82'
+}
