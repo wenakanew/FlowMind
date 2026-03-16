@@ -2,16 +2,27 @@
 
 import { useState } from "react";
 import { INTEGRATIONS } from "@/lib/integrations";
+import { TelegramLinkModal } from "@/components/dashboard/telegram-link-modal";
 
 const messaging = INTEGRATIONS.filter((i) => i.action === "link");
 const tools = INTEGRATIONS.filter((i) => i.action === "connect");
 
 export default function IntegrationsPage() {
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [telegramModalOpen, setTelegramModalOpen] = useState(false);
 
   const handleConnect = (id: string) => {
     setConnecting(id);
     setTimeout(() => setConnecting(null), 1500);
+  };
+
+  const handleLinkMessaging = (id: string) => {
+    if (id === "telegram") {
+      setTelegramModalOpen(true);
+      return;
+    }
+
+    handleConnect(id);
   };
 
   return (
@@ -52,7 +63,7 @@ export default function IntegrationsPage() {
                 <div className="mt-4">
                   <button
                     type="button"
-                    onClick={() => handleConnect(item.id)}
+                    onClick={() => handleLinkMessaging(item.id)}
                     disabled={!!connecting}
                     className="w-full rounded-lg bg-zinc-900 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                   >
@@ -112,6 +123,11 @@ export default function IntegrationsPage() {
           })}
         </div>
       </section>
+
+      <TelegramLinkModal
+        open={telegramModalOpen}
+        onClose={() => setTelegramModalOpen(false)}
+      />
     </div>
   );
 }
