@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "result": {
+    "url": "https://arundinaceous-mui-earthen.ngrok-free.dev/api/webhooks/telegram",
+    "has_custom_certificate": false,
+    "pending_update_count": 0,
+    "max_connections": 40,
+    "ip_address": "3.125.102.39",
+    "allowed_updates": [
+      "message"
+    ]
+  }
+}

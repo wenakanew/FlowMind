@@ -1,0 +1,20 @@
+﻿[dotenv@17.3.1] injecting env (39) from .env -- tip: ΓÜí∩╕Å secrets for agents: https://dotenvx.com/as2
+Testing AI Engine (Gemini) Tool Calling...
+
+Prompt: 'What are my tasks?'
+≡ƒºá Agent received prompt: "What are my tasks?"
+node.exe : Agent failed: Error: ContentUnion is required
+At C:\Program Files\nodejs\npx.ps1:29 char:3
++   & $NODE_EXE $NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Agent failed: E...ion is required: 
+   String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    at tContent (C:\Users\Administrator\Desktop\FlowMind\node_modules\@google\ge
+nai\dist\node\index.cjs:2866:15)
+    at Chat.sendMessage (C:\Users\Administrator\Desktop\FlowMind\node_modules\@g
+oogle\genai\dist\node\index.cjs:6821:30)
+    at async runAgent (C:\Users\Administrator\Desktop\FlowMind\lib\ai.ts:81:20)
+    at async main 
+(C:\Users\Administrator\Desktop\FlowMind\scripts\test-chat.ts:10:23)
