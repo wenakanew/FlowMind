@@ -143,20 +143,21 @@ export async function runAgent(prompt: string, actor?: AgentActorContext) {
     // If the model decides to call functions, response.functionCalls will be populated.
     while (response.functionCalls && response.functionCalls.length > 0) {
         const call = response.functionCalls[0];
-        console.log(`🛠️ Model requested tool: ${call.name} with args`, call.args);
+        const toolName = call.name || '';
+        console.log(`🛠️ Model requested tool: ${toolName} with args`, call.args);
 
         let toolResult;
-        const impl = toolsImplementation[call.name];
+        const impl = toolName ? toolsImplementation[toolName] : undefined;
 
         if (impl) {
             try {
                 toolResult = await impl(call.args);
             } catch (error: any) {
-                console.error(`Error executing ${call.name}:`, error);
+                console.error(`Error executing ${toolName}:`, error);
                 toolResult = { error: error.message || "An unknown error occurred" };
             }
         } else {
-            toolResult = { error: `Tool ${call.name} not implemented.` };
+            toolResult = { error: `Tool ${toolName || 'unknown'} not implemented.` };
         }
 
         console.log(`⏎ Returning tool result to model:`, toolResult);
@@ -165,7 +166,7 @@ export async function runAgent(prompt: string, actor?: AgentActorContext) {
         response = await chat.sendMessage({
             message: [{
                 functionResponse: {
-                    name: call.name,
+                    name: toolName,
                     response: toolResult
                 }
             }]

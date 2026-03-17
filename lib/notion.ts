@@ -14,6 +14,11 @@ interface UpsertUserInput {
     telegramUsername?: string;
     whatsappNumber?: string;
     role?: string;
+    gmailAccessToken?: string;
+    gmailRefreshToken?: string;
+    githubAccessToken?: string;
+    googleCalendarAccessToken?: string;
+    googleCalendarRefreshToken?: string;
 }
 
 // Function to get or initialize the Notion client
@@ -242,6 +247,81 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         };
     }
 
+    const gmailAccessTokenKey = findPropertyByNameAndTypes(properties, 'Gmail Access Token', ['rich_text']);
+    if (typeof input.gmailAccessToken !== 'undefined' && gmailAccessTokenKey) {
+        result[gmailAccessTokenKey] = {
+            rich_text: input.gmailAccessToken
+                ? [
+                    {
+                        text: {
+                            content: input.gmailAccessToken,
+                        },
+                    },
+                ]
+                : [],
+        };
+    }
+
+    const gmailRefreshTokenKey = findPropertyByNameAndTypes(properties, 'Gmail Refresh Token', ['rich_text']);
+    if (typeof input.gmailRefreshToken !== 'undefined' && gmailRefreshTokenKey) {
+        result[gmailRefreshTokenKey] = {
+            rich_text: input.gmailRefreshToken
+                ? [
+                    {
+                        text: {
+                            content: input.gmailRefreshToken,
+                        },
+                    },
+                ]
+                : [],
+        };
+    }
+
+    const githubAccessTokenKey = findPropertyByNameAndTypes(properties, 'GitHub Access Token', ['rich_text']);
+    if (typeof input.githubAccessToken !== 'undefined' && githubAccessTokenKey) {
+        result[githubAccessTokenKey] = {
+            rich_text: input.githubAccessToken
+                ? [
+                    {
+                        text: {
+                            content: input.githubAccessToken,
+                        },
+                    },
+                ]
+                : [],
+        };
+    }
+
+    const calendarAccessTokenKey = findPropertyByNameAndTypes(properties, 'Google Calendar Access Token', ['rich_text']);
+    if (typeof input.googleCalendarAccessToken !== 'undefined' && calendarAccessTokenKey) {
+        result[calendarAccessTokenKey] = {
+            rich_text: input.googleCalendarAccessToken
+                ? [
+                    {
+                        text: {
+                            content: input.googleCalendarAccessToken,
+                        },
+                    },
+                ]
+                : [],
+        };
+    }
+
+    const calendarRefreshTokenKey = findPropertyByNameAndTypes(properties, 'Google Calendar Refresh Token', ['rich_text']);
+    if (typeof input.googleCalendarRefreshToken !== 'undefined' && calendarRefreshTokenKey) {
+        result[calendarRefreshTokenKey] = {
+            rich_text: input.googleCalendarRefreshToken
+                ? [
+                    {
+                        text: {
+                            content: input.googleCalendarRefreshToken,
+                        },
+                    },
+                ]
+                : [],
+        };
+    }
+
     return result;
 }
 
@@ -253,6 +333,11 @@ function mapNotionUser(page: any): NotionUser {
     const whatsappKey = findPropertyByNameAndTypes(props, 'WhatsApp Number', ['rich_text']);
     const roleKey = findPropertyByNameAndTypes(props, 'Role', ['select']);
     const avatarKey = findPropertyByNameAndTypes(props, 'Avatar URL', ['url']);
+    const gmailAccessTokenKey = findPropertyByNameAndTypes(props, 'Gmail Access Token', ['rich_text']);
+    const gmailRefreshTokenKey = findPropertyByNameAndTypes(props, 'Gmail Refresh Token', ['rich_text']);
+    const githubAccessTokenKey = findPropertyByNameAndTypes(props, 'GitHub Access Token', ['rich_text']);
+    const calendarAccessTokenKey = findPropertyByNameAndTypes(props, 'Google Calendar Access Token', ['rich_text']);
+    const calendarRefreshTokenKey = findPropertyByNameAndTypes(props, 'Google Calendar Refresh Token', ['rich_text']);
 
     return {
         id: page.id,
@@ -262,6 +347,11 @@ function mapNotionUser(page: any): NotionUser {
         email: emailKey ? extractEmailOrRichText(props[emailKey]) : undefined,
         role: roleKey ? props[roleKey]?.select?.name : undefined,
         avatarUrl: avatarKey ? props[avatarKey]?.url : undefined,
+        gmailAccessToken: gmailAccessTokenKey ? extractRichText(props[gmailAccessTokenKey]) : undefined,
+        gmailRefreshToken: gmailRefreshTokenKey ? extractRichText(props[gmailRefreshTokenKey]) : undefined,
+        githubAccessToken: githubAccessTokenKey ? extractRichText(props[githubAccessTokenKey]) : undefined,
+        googleCalendarAccessToken: calendarAccessTokenKey ? extractRichText(props[calendarAccessTokenKey]) : undefined,
+        googleCalendarRefreshToken: calendarRefreshTokenKey ? extractRichText(props[calendarRefreshTokenKey]) : undefined,
     };
 }
 

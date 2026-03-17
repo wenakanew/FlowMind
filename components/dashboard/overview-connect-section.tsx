@@ -26,7 +26,7 @@ const connectItems = [
   {
     id: "integrations",
     name: "Integrations",
-    description: "GitHub, Gmail, Cal.com, and more in one place.",
+    description: "GitHub, Gmail, Google Calendar, and more in one place.",
     icon: "⬡",
     connected: false,
   },
@@ -135,9 +135,7 @@ export function OverviewConnectSection() {
                 >
                   {(item.id === "telegram"
                     ? telegramLinked
-                    : item.id === "whatsapp"
-                      ? whatsappLinked
-                      : item.connected) ? "Manage" : "Connect"}
+                    : whatsappLinked) ? "Manage" : "Connect"}
                 </button>
               ) : (
                 <Link

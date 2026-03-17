@@ -1,7 +1,7 @@
 /**
  * User-facing integrations only. The system has its own Telegram bot and WhatsApp number;
  * users link their Telegram username or WhatsApp number and get a confirmation on that platform.
- * Gmail, GitHub, and Cal.com are the user's own accounts.
+ * Gmail, GitHub, and Google Calendar are the user's own accounts.
  */
 
 export interface IntegrationItem {
@@ -40,9 +40,9 @@ export const INTEGRATIONS: IntegrationItem[] = [
     action: "connect",
   },
   {
-    id: "calcom",
-    name: "Cal.com",
-    description: "Connect your Cal.com for scheduling and managing meetings from flows.",
+    id: "calendar",
+    name: "Google Calendar",
+    description: "Connect your Google Calendar to view events, schedule meetings, and manage your schedule from flows.",
     action: "connect",
   },
 ];
