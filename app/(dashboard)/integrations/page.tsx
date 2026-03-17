@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { INTEGRATIONS } from "@/lib/integrations";
@@ -43,9 +44,9 @@ export default function IntegrationsPage() {
       try {
         const user = await fetchSyncedUser(profileEmail);
         if (active) {
-          setTelegramLinked(Boolean(user?.telegramUsername));
+          setTelegramLinked(Boolean(user?.telegramUsername || user?.telegramChatId));
           setWhatsappLinked(Boolean(user?.whatsappNumber));
-          setTelegramUsername(user?.telegramUsername || null);
+          setTelegramUsername(user?.telegramUsername || (user?.telegramChatId ? `chat:${user.telegramChatId}` : null));
           setWhatsappNumber(user?.whatsappNumber || null);
           setGmailConnected(Boolean(user?.gmailConnected));
           setGithubConnected(Boolean(user?.githubConnected));
@@ -146,9 +147,17 @@ export default function IntegrationsPage() {
   return (
     <div className="flex flex-col gap-8 pb-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Integrations
-        </h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Integrations
+          </h1>
+          <Link
+            href="/integrations/manage"
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            Open Manage Page
+          </Link>
+        </div>
         <p className="mt-1 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
           Link your Telegram or WhatsApp so you can chat with the FlowMind bot and run flows. Connect your Gmail, GitHub, and Google Calendar to use them in your workflows.
         </p>

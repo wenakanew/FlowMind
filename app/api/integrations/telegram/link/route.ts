@@ -14,16 +14,9 @@ interface TelegramBotProfile {
 }
 
 interface LinkRequestBody {
-  username?: string;
   email?: string;
   name?: string;
   avatarUrl?: string;
-}
-
-const USERNAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{4,31}$/;
-
-function cleanUsername(input: string) {
-  return input.trim().replace(/^@+/, "");
 }
 
 async function resolveBotUsername(token: string) {
@@ -114,20 +107,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { username, email, name, avatarUrl } = (await request.json()) as LinkRequestBody;
-  const parsedUsername = cleanUsername(username || "");
+  const { email, name, avatarUrl } = (await request.json()) as LinkRequestBody;
   const trimmedEmail = email?.trim().toLowerCase();
   const trimmedName = name?.trim();
-
-  if (!USERNAME_PATTERN.test(parsedUsername)) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message: "Please enter a valid Telegram username.",
-      },
-      { status: 400 },
-    );
-  }
 
   if (!trimmedEmail || !trimmedName) {
     return NextResponse.json(
@@ -152,12 +134,13 @@ export async function POST(request: Request) {
 
   try {
     const existingUser = await getUserByEmail(trimmedEmail);
-    const existingTelegram = existingUser?.telegramUsername?.trim().replace(/^@+/, "");
-    if (existingTelegram && existingTelegram.toLowerCase() !== parsedUsername.toLowerCase()) {
+    const existingTelegramUsername = existingUser?.telegramUsername?.trim();
+    const existingTelegramChatId = existingUser?.telegramChatId?.trim();
+    if (existingTelegramUsername || existingTelegramChatId) {
       return NextResponse.json(
         {
           ok: false,
-          message: `This account already has Telegram @${existingTelegram} linked. Delete it first before linking a new one.`,
+          message: "This account already has Telegram linked. Delete it first before linking a new one.",
         },
         { status: 409 },
       );
@@ -178,7 +161,6 @@ export async function POST(request: Request) {
     const token = createPendingTelegramLink({
       email: trimmedEmail,
       name: trimmedName,
-      requestedUsername: parsedUsername,
       avatarUrl: avatarUrl?.trim() || undefined,
     });
 
@@ -191,7 +173,7 @@ export async function POST(request: Request) {
         ok: true,
         pendingStart: true,
         startUrl: deepLinkStartUrl,
-        message: "Verification started. Open Telegram and tap Start to verify your real account.",
+        message: "Open Telegram and tap Start. FlowMind will automatically verify and link this Telegram account.",
       },
       { status: 200 },
     );

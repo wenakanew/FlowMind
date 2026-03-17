@@ -3,6 +3,7 @@ export interface SyncedNotionUser {
   name: string;
   email?: string;
   telegramUsername?: string;
+  telegramChatId?: string;
   whatsappNumber?: string;
   role?: string;
   avatarUrl?: string;

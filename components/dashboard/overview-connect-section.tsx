@@ -13,21 +13,21 @@ const connectItems = [
     id: "telegram",
     name: "Telegram",
     description: "Run flows and get updates in your Telegram chat.",
-    icon: "✈",
+    icon: "",
     connected: false,
   },
   {
     id: "whatsapp",
     name: "WhatsApp",
     description: "Control flows and receive notifications via WhatsApp.",
-    icon: "💬",
+    icon: "",
     connected: false,
   },
   {
     id: "integrations",
     name: "Integrations",
     description: "GitHub, Gmail, Google Calendar, and more in one place.",
-    icon: "⬡",
+    icon: "",
     connected: false,
   },
 ] as const;
@@ -56,9 +56,9 @@ export function OverviewConnectSection() {
       try {
         const user = await fetchSyncedUser(profileEmail);
         if (active) {
-          setTelegramLinked(Boolean(user?.telegramUsername));
+          setTelegramLinked(Boolean(user?.telegramUsername || user?.telegramChatId));
           setWhatsappLinked(Boolean(user?.whatsappNumber));
-          setTelegramUsername(user?.telegramUsername || null);
+          setTelegramUsername(user?.telegramUsername || (user?.telegramChatId ? `chat:${user.telegramChatId}` : null));
           setWhatsappNumber(user?.whatsappNumber || null);
         }
       } catch {

@@ -18,6 +18,7 @@ export interface NotionUser {
   id: string;
   name: string;
   telegramUsername?: string;
+  telegramChatId?: string;
   whatsappNumber?: string;
   email?: string;
   role?: string;
