@@ -12,6 +12,7 @@ interface UpsertUserInput {
     email: string;
     avatarUrl?: string;
     telegramUsername?: string;
+    telegramChatId?: string;
     whatsappNumber?: string;
     role?: string;
     gmailAccessToken?: string;
@@ -234,6 +235,31 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         };
     }
 
+    const telegramChatIdKey = findPropertyByCandidateNamesAndTypes(
+        properties,
+        ['Telegram Chat ID', 'Telegram ChatId', 'Telegram ID'],
+        ['rich_text', 'number'],
+    );
+    if (typeof input.telegramChatId !== 'undefined' && telegramChatIdKey) {
+        if (properties[telegramChatIdKey]?.type === 'number') {
+            result[telegramChatIdKey] = {
+                number: input.telegramChatId ? Number(input.telegramChatId) : null,
+            };
+        } else {
+            result[telegramChatIdKey] = {
+                rich_text: input.telegramChatId
+                    ? [
+                        {
+                            text: {
+                                content: input.telegramChatId,
+                            },
+                        },
+                    ]
+                    : [],
+            };
+        }
+    }
+
     const whatsappKey = findPropertyByNameAndTypes(properties, 'WhatsApp Number', ['rich_text']);
     if (typeof input.whatsappNumber !== 'undefined' && whatsappKey) {
         result[whatsappKey] = {
@@ -384,6 +410,11 @@ function mapNotionUser(page: any): NotionUser {
     const titleKey = Object.keys(props).find((k) => props[k].type === 'title') || 'Name';
     const emailKey = findPropertyByNameAndTypes(props, 'Email', ['email', 'rich_text']);
     const telegramKey = findPropertyByNameAndTypes(props, 'Telegram Username', ['rich_text']);
+    const telegramChatIdKey = findPropertyByCandidateNamesAndTypes(
+        props,
+        ['Telegram Chat ID', 'Telegram ChatId', 'Telegram ID'],
+        ['rich_text', 'number'],
+    );
     const whatsappKey = findPropertyByNameAndTypes(props, 'WhatsApp Number', ['rich_text']);
     const roleKey = findPropertyByNameAndTypes(props, 'Role', ['select']);
     const avatarKey = findPropertyByNameAndTypes(props, 'Avatar URL', ['url']);
@@ -417,6 +448,11 @@ function mapNotionUser(page: any): NotionUser {
         id: page.id,
         name: extractTitle(props[titleKey]),
         telegramUsername: telegramKey ? extractRichText(props[telegramKey]) : undefined,
+        telegramChatId: telegramChatIdKey
+            ? (props[telegramChatIdKey]?.type === 'number'
+                ? (props[telegramChatIdKey]?.number != null ? String(props[telegramChatIdKey].number) : undefined)
+                : extractRichText(props[telegramChatIdKey]))
+            : undefined,
         whatsappNumber: whatsappKey ? extractRichText(props[whatsappKey]) : undefined,
         email: emailKey ? extractEmailOrRichText(props[emailKey]) : undefined,
         role: roleKey ? props[roleKey]?.select?.name : undefined,
@@ -646,6 +682,16 @@ export async function getUserByTelegramUsername(username: string): Promise<Notio
 
     const users = await getUsers();
     return users.find((user) => user.telegramUsername?.trim().replace(/^@/, '').toLowerCase() === normalized) || null;
+}
+
+export async function getUserByTelegramChatId(chatId: string | number): Promise<NotionUser | null> {
+    const normalized = String(chatId).trim();
+    if (!normalized) {
+        return null;
+    }
+
+    const users = await getUsers();
+    return users.find((user) => (user.telegramChatId || '').trim() === normalized) || null;
 }
 
 export async function getUserByWhatsAppNumber(phone: string): Promise<NotionUser | null> {

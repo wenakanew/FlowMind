@@ -22,6 +22,7 @@ export async function POST(request: Request) {
       name,
       avatarUrl: body.avatarUrl?.trim() || undefined,
       telegramUsername: "",
+      telegramChatId: "",
     });
 
     return NextResponse.json({ ok: true, message: "Telegram connection deleted." });

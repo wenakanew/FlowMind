@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getUserProfile } from "@/lib/preferences";
 
@@ -13,7 +13,6 @@ interface TelegramLinkModalProps {
 interface LinkTelegramResponse {
   ok: boolean;
   message: string;
-  username?: string;
   pendingStart?: boolean;
   startUrl?: string | null;
 }
@@ -26,21 +25,14 @@ interface FeedbackState {
 }
 
 export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLinkModalProps) {
-  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [deletedCurrent, setDeletedCurrent] = useState(false);
   const { isAuthenticated } = useAuth();
-
-  const normalizedUsername = useMemo(
-    () => username.trim().replace(/^@+/, ""),
-    [username],
-  );
   const hasExistingLinked = Boolean(currentUsername) && !deletedCurrent;
 
   useEffect(() => {
     if (!open) return;
-    setUsername("");
     setFeedback(null);
     setDeletedCurrent(false);
   }, [open, currentUsername]);
@@ -95,11 +87,6 @@ export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLi
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!normalizedUsername) {
-      setFeedback({ type: "error", text: "Please enter your Telegram username." });
-      return;
-    }
-
     if (!isAuthenticated) {
       setFeedback({ type: "error", text: "Sign in first to link Telegram." });
       return;
@@ -116,7 +103,6 @@ export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLi
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: normalizedUsername,
           email: profile.email,
           name: profile.displayName,
           avatarUrl: profile.avatarUrl,
@@ -157,13 +143,13 @@ export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLi
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {hasExistingLinked
             ? "Only one Telegram account is allowed. Delete the current one before adding another."
-            : "Enter your Telegram username, then press Connect."}
+            : "Click Connect, then open Telegram and press Start in the bot chat to verify this account."}
         </p>
 
         {hasExistingLinked ? (
           <div className="mt-4 space-y-3">
             <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
-              Linked account: <span className="font-medium">@{currentUsername}</span>
+              Linked account: <span className="font-medium">{currentUsername?.startsWith("chat:") ? currentUsername : `@${currentUsername}`}</span>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
               To add a new account, delete this one first.
@@ -203,20 +189,9 @@ export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLi
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Telegram username
-              <div className="mt-1 flex items-center rounded-lg border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900">
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">@</span>
-                <input
-                  value={normalizedUsername}
-                  onChange={(event) => setUsername(event.target.value)}
-                  className="w-full bg-transparent px-1 py-2.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100"
-                  placeholder="your_username"
-                  autoFocus
-                  autoComplete="off"
-                />
-              </div>
-            </label>
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
+              You do not need a Telegram username. Verification uses your Telegram account directly after pressing Start.
+            </div>
 
             {feedback && (
               <div className="space-y-2">
@@ -259,7 +234,7 @@ export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLi
                 disabled={loading}
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
               >
-                {loading ? "Connecting…" : "Connect"}
+                {loading ? "Starting…" : "Connect"}
               </button>
             </div>
           </form>

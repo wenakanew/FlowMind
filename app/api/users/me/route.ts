@@ -18,6 +18,7 @@ function toPublicUser(user: NotionUser | null) {
     name: user.name,
     email: user.email,
     telegramUsername: user.telegramUsername,
+    telegramChatId: user.telegramChatId,
     whatsappNumber: user.whatsappNumber,
     role: user.role,
     avatarUrl: user.avatarUrl,

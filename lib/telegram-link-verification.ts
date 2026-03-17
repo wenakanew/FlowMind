@@ -1,7 +1,6 @@
 interface PendingTelegramLink {
   email: string;
   name: string;
-  requestedUsername: string;
   avatarUrl?: string;
   createdAt: number;
 }
@@ -21,7 +20,6 @@ function pruneExpired() {
 export function createPendingTelegramLink(input: {
   email: string;
   name: string;
-  requestedUsername: string;
   avatarUrl?: string;
 }) {
   pruneExpired();
