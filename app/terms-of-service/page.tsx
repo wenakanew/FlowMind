@@ -91,7 +91,7 @@ export default function TermsOfServicePage() {
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">10. Contact</h2>
           <p>
-            Terms questions: <a className="underline" href="mailto:legal@flowmind.kaniujeffray.me">legal@flowmind.kaniujeffray.me</a>
+            Terms questions: <a className="underline" href="mailto:kaniujeffray@gmail.com">kaniujeffray@gmail.com</a>
           </p>
         </section>
       </div>
