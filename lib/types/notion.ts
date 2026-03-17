@@ -22,4 +22,9 @@ export interface NotionUser {
   email?: string;
   role?: string;
   avatarUrl?: string;
+  gmailAccessToken?: string;
+  gmailRefreshToken?: string;
+  githubAccessToken?: string;
+  googleCalendarAccessToken?: string;
+  googleCalendarRefreshToken?: string;
 }

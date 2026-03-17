@@ -139,7 +139,7 @@ export default async function DashboardOverview() {
             },
             {
               title: "Integrations hub",
-              desc: "Connect GitHub, Gmail, Cal.com, and more; control them via natural language.",
+              desc: "Connect GitHub, Gmail, Google Calendar, and more; control them via natural language.",
               icon: "⬡",
             },
             {

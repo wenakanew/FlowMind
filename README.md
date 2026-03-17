@@ -161,12 +161,12 @@ Capabilities include:
 
 ## Intelligent Scheduling
 
-FlowMind integrates with **Cal.com** to handle scheduling tasks such as:
+FlowMind integrates with **Google Calendar** to handle scheduling tasks such as:
 
-* creating meetings
-* managing availability
-* generating booking links
-* coordinating events
+* viewing upcoming events
+* creating calendar events
+* checking availability
+* managing schedule conflicts
 
 ---
 
@@ -202,7 +202,7 @@ Users can link external services such as:
 * WhatsApp
 * GitHub
 * Gmail
-* Cal.com
+* Google Calendar
 
 The dashboard currently provides first-class linking/management for Telegram and WhatsApp.
 
@@ -344,13 +344,13 @@ WhatsApp Sandbox linking UX currently includes:
 
 # Scheduling Layer
 
-Scheduling functionality is implemented using **Cal.com**.
+Scheduling functionality is implemented using **Google Calendar**.
 
 This allows the AI agent to:
 
-* create meeting events
-* generate booking links
-* manage scheduling availability
+* list upcoming events
+* create calendar events
+* check schedule availability
 
 ---
 
@@ -392,7 +392,7 @@ FlowMind can integrate with:
 
 * **Gmail**
 * **GitHub**
-* **Cal.com**
+* **Google Calendar**
 * **Notion**
 * **Telegram**
 * **WhatsApp**

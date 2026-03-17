@@ -8,7 +8,7 @@ async function check() {
 
     try {
         const page = await client.pages.retrieve({ page_id: id });
-        console.log('SUCCESS! It is a PAGE:', page.url);
+        console.log('SUCCESS! It is a PAGE:', (page as any).url || '(no url)');
 
         // If it's a page, let's list its blocks to find inline databases
         const blocks = await client.blocks.children.list({ block_id: id });
@@ -21,7 +21,7 @@ async function check() {
 
     try {
         const db = await client.databases.retrieve({ database_id: id });
-        console.log('SUCCESS! It is a DATABASE:', db.url);
+        console.log('SUCCESS! It is a DATABASE:', (db as any).url || '(no url)');
     } catch (err: any) {
         console.error('Not a database?', err.message);
     }

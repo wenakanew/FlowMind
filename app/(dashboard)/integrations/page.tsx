@@ -19,6 +19,9 @@ export default function IntegrationsPage() {
   const [whatsappLinked, setWhatsappLinked] = useState(false);
   const [telegramUsername, setTelegramUsername] = useState<string | null>(null);
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [calendarConnected, setCalendarConnected] = useState(false);
   const { isAuthenticated } = useAuth();
 
   const profileEmail = useMemo(() => getUserProfile().email, []);
@@ -28,6 +31,9 @@ export default function IntegrationsPage() {
       setTelegramLinked(false);
       setTelegramUsername(null);
       setWhatsappNumber(null);
+      setGmailConnected(false);
+      setGithubConnected(false);
+      setCalendarConnected(false);
       return;
     }
 
@@ -41,6 +47,9 @@ export default function IntegrationsPage() {
           setWhatsappLinked(Boolean(user?.whatsappNumber));
           setTelegramUsername(user?.telegramUsername || null);
           setWhatsappNumber(user?.whatsappNumber || null);
+          setGmailConnected(Boolean(user?.gmailAccessToken));
+          setGithubConnected(Boolean(user?.githubAccessToken));
+          setCalendarConnected(Boolean(user?.googleCalendarAccessToken));
         }
       } catch {
         if (active) {
@@ -48,6 +57,9 @@ export default function IntegrationsPage() {
           setWhatsappLinked(false);
           setTelegramUsername(null);
           setWhatsappNumber(null);
+          setGmailConnected(false);
+          setGithubConnected(false);
+          setCalendarConnected(false);
         }
       }
     };
@@ -66,8 +78,55 @@ export default function IntegrationsPage() {
   }, [isAuthenticated, profileEmail]);
 
   const handleConnect = (id: string) => {
+    if (!profileEmail) return;
+
+    if (id === "gmail" || id === "calendar") {
+      window.location.href = `/api/integrations/google/authorize?email=${encodeURIComponent(profileEmail)}`;
+      return;
+    }
+
+    if (id === "github") {
+      window.location.href = `/api/integrations/github/authorize?email=${encodeURIComponent(profileEmail)}`;
+      return;
+    }
+
     setConnecting(id);
     setTimeout(() => setConnecting(null), 1500);
+  };
+
+  const handleToolAction = async (id: string, connected: boolean) => {
+    if (!connected) {
+      handleConnect(id);
+      return;
+    }
+
+    const profile = getUserProfile();
+    const body = {
+      email: profile.email,
+      name: profile.displayName,
+      avatarUrl: profile.avatarUrl,
+    };
+
+    try {
+      setConnecting(id);
+      const endpoint = id === "github"
+        ? "/api/integrations/github/disconnect"
+        : "/api/integrations/google/disconnect";
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to disconnect integration.");
+      }
+
+      window.dispatchEvent(new CustomEvent("flowmind:integrations-updated"));
+    } finally {
+      setConnecting(null);
+    }
   };
 
   const handleLinkMessaging = (id: string) => {
@@ -91,7 +150,7 @@ export default function IntegrationsPage() {
           Integrations
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-          Link your Telegram or WhatsApp so you can chat with the FlowMind bot and run flows. Connect your Gmail, GitHub, and Cal.com to use them in your workflows.
+          Link your Telegram or WhatsApp so you can chat with the FlowMind bot and run flows. Connect your Gmail, GitHub, and Google Calendar to use them in your workflows.
         </p>
       </div>
 
@@ -150,7 +209,14 @@ export default function IntegrationsPage() {
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tools.map((item) => {
-            const connected = false;
+            const connected =
+              item.id === "gmail"
+                ? gmailConnected
+                : item.id === "github"
+                  ? githubConnected
+                  : item.id === "calendar"
+                    ? calendarConnected
+                    : false;
             const isConnecting = connecting === item.id;
             return (
               <div
@@ -171,14 +237,14 @@ export default function IntegrationsPage() {
                 <div className="mt-4">
                   <button
                     type="button"
-                    onClick={() => handleConnect(item.id)}
+                    onClick={() => void handleToolAction(item.id, connected)}
                     disabled={!!connecting}
                     className="w-full rounded-lg bg-zinc-900 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                   >
                     {isConnecting
                       ? "Connecting…"
                       : connected
-                        ? "Manage"
+                        ? "Disconnect"
                         : "Connect"}
                   </button>
                 </div>
