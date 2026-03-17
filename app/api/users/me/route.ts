@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserByEmail, upsertUser } from "@/lib/notion";
+import { NotionUser } from "@/lib/types/notion";
 
 interface SyncUserBody {
   email?: string;
@@ -7,6 +8,23 @@ interface SyncUserBody {
   avatarUrl?: string;
   telegramUsername?: string;
   whatsappNumber?: string;
+}
+
+function toPublicUser(user: NotionUser | null) {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    telegramUsername: user.telegramUsername,
+    whatsappNumber: user.whatsappNumber,
+    role: user.role,
+    avatarUrl: user.avatarUrl,
+    gmailConnected: Boolean(user.gmailAccessToken),
+    githubConnected: Boolean(user.githubAccessToken),
+    googleCalendarConnected: Boolean(user.googleCalendarAccessToken),
+  };
 }
 
 export async function GET(request: Request) {
@@ -19,7 +37,7 @@ export async function GET(request: Request) {
 
   try {
     const user = await getUserByEmail(email);
-    return NextResponse.json({ ok: true, user });
+    return NextResponse.json({ ok: true, user: toPublicUser(user) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load user.";
     return NextResponse.json({ ok: false, message }, { status: 500 });
@@ -48,7 +66,7 @@ export async function POST(request: Request) {
       whatsappNumber: body.whatsappNumber?.trim() || undefined,
     });
 
-    return NextResponse.json({ ok: true, user });
+    return NextResponse.json({ ok: true, user: toPublicUser(user) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to sync user.";
     return NextResponse.json({ ok: false, message }, { status: 500 });

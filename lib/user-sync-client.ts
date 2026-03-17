@@ -6,11 +6,9 @@ export interface SyncedNotionUser {
   whatsappNumber?: string;
   role?: string;
   avatarUrl?: string;
-  gmailAccessToken?: string;
-  gmailRefreshToken?: string;
-  githubAccessToken?: string;
-  googleCalendarAccessToken?: string;
-  googleCalendarRefreshToken?: string;
+  gmailConnected?: boolean;
+  githubConnected?: boolean;
+  googleCalendarConnected?: boolean;
 }
 
 export async function fetchSyncedUser(email: string) {
