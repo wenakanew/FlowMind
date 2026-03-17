@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/components/auth/auth-provider";
 import { INTEGRATIONS } from "@/lib/integrations";
+import { getUserProfile } from "@/lib/preferences";
+import { fetchSyncedUser } from "@/lib/user-sync-client";
 import { TelegramLinkModal } from "@/components/dashboard/telegram-link-modal";
+import { WhatsAppLinkModal } from "@/components/dashboard/whatsapp-link-modal";
 
 const messaging = INTEGRATIONS.filter((i) => i.action === "link");
 const tools = INTEGRATIONS.filter((i) => i.action === "connect");
@@ -10,6 +14,56 @@ const tools = INTEGRATIONS.filter((i) => i.action === "connect");
 export default function IntegrationsPage() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [telegramLinked, setTelegramLinked] = useState(false);
+  const [whatsappLinked, setWhatsappLinked] = useState(false);
+  const [telegramUsername, setTelegramUsername] = useState<string | null>(null);
+  const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
+
+  const profileEmail = useMemo(() => getUserProfile().email, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !profileEmail) {
+      setTelegramLinked(false);
+      setTelegramUsername(null);
+      setWhatsappNumber(null);
+      return;
+    }
+
+    let active = true;
+
+    const load = async () => {
+      try {
+        const user = await fetchSyncedUser(profileEmail);
+        if (active) {
+          setTelegramLinked(Boolean(user?.telegramUsername));
+          setWhatsappLinked(Boolean(user?.whatsappNumber));
+          setTelegramUsername(user?.telegramUsername || null);
+          setWhatsappNumber(user?.whatsappNumber || null);
+        }
+      } catch {
+        if (active) {
+          setTelegramLinked(false);
+          setWhatsappLinked(false);
+          setTelegramUsername(null);
+          setWhatsappNumber(null);
+        }
+      }
+    };
+
+    void load();
+
+    const refresh = () => {
+      void load();
+    };
+
+    window.addEventListener("flowmind:integrations-updated", refresh);
+    return () => {
+      active = false;
+      window.removeEventListener("flowmind:integrations-updated", refresh);
+    };
+  }, [isAuthenticated, profileEmail]);
 
   const handleConnect = (id: string) => {
     setConnecting(id);
@@ -19,6 +73,11 @@ export default function IntegrationsPage() {
   const handleLinkMessaging = (id: string) => {
     if (id === "telegram") {
       setTelegramModalOpen(true);
+      return;
+    }
+
+    if (id === "whatsapp") {
+      setWhatsappModalOpen(true);
       return;
     }
 
@@ -42,7 +101,12 @@ export default function IntegrationsPage() {
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {messaging.map((item) => {
-            const connected = false;
+            const connected =
+              item.id === "telegram"
+                ? telegramLinked
+                : item.id === "whatsapp"
+                  ? whatsappLinked
+                  : false;
             const isConnecting = connecting === item.id;
             return (
               <div
@@ -127,6 +191,12 @@ export default function IntegrationsPage() {
       <TelegramLinkModal
         open={telegramModalOpen}
         onClose={() => setTelegramModalOpen(false)}
+        currentUsername={telegramUsername}
+      />
+      <WhatsAppLinkModal
+        open={whatsappModalOpen}
+        onClose={() => setWhatsappModalOpen(false)}
+        currentNumber={whatsappNumber}
       />
     </div>
   );

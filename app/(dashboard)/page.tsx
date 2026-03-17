@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { OverviewConnectSection } from "@/components/dashboard/overview-connect-section";
-import { OverviewSystemStatus } from "@/components/dashboard/overview-system-status";
 import { getTasks, getProjects } from "@/lib/notion";
 
 export default async function DashboardOverview() {
@@ -124,7 +123,7 @@ export default async function DashboardOverview() {
           What FlowMind does
         </h2>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          At the end of development you’ll have:
+          What you can do with FlowMind:
         </p>
         <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[
@@ -188,45 +187,6 @@ export default async function DashboardOverview() {
           Link your channels and tools to start running flows.
         </p>
         <OverviewConnectSection />
-      </section>
-
-      {/* System status */}
-      <section>
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          System status
-        </h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Backend and integration health at a glance.
-        </p>
-        <OverviewSystemStatus />
-      </section>
-
-      {/* Quick links */}
-      <section className="flex flex-wrap gap-3">
-        <Link
-          href="/flows"
-          className="rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-        >
-          View flows →
-        </Link>
-        <Link
-          href="/integrations"
-          className="rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-        >
-          Manage integrations →
-        </Link>
-        <Link
-          href="/profile"
-          className="rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-        >
-          Profile →
-        </Link>
-        <Link
-          href="/settings"
-          className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
-          System settings
-        </Link>
       </section>
     </div>
   );

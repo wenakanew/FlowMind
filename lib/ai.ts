@@ -1,6 +1,13 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { getTasks, createTask } from './notion';
 
+interface AgentActorContext {
+    email?: string;
+    name?: string;
+    handle?: string;
+    channel?: 'telegram' | 'whatsapp' | 'web';
+}
+
 let aiClient: GoogleGenAI | null = null;
 
 export function getAIClient() {
@@ -13,17 +20,55 @@ export function getAIClient() {
     return aiClient;
 }
 
-// Map tool names to the actual internal implementation
-const toolsImplementation: Record<string, Function> = {
-    getTasks: async (args: any) => {
-        const tasks = await getTasks(args.statusFilter);
-        return { tasks };
-    },
-    createTask: async (args: any) => {
-        const task = await createTask(args.title, args.status);
-        return { task };
+function normalize(value?: string) {
+    return (value || '').trim().toLowerCase();
+}
+
+function isTaskOwnedByActor(owner: string | undefined, actor?: AgentActorContext) {
+    if (!actor?.email && !actor?.name && !actor?.handle) {
+        return true;
     }
-};
+
+    const ownerText = normalize(owner);
+    if (!ownerText) {
+        return false;
+    }
+
+    const checks = [normalize(actor.email), normalize(actor.name), normalize(actor.handle)].filter(Boolean);
+    return checks.some((value) => ownerText.includes(value));
+}
+
+function createToolsImplementation(actor?: AgentActorContext): Record<string, Function> {
+    return {
+        getTasks: async (args: any) => {
+            const tasks = await getTasks(args?.statusFilter);
+
+            const ownedOnly = tasks.filter((task) => isTaskOwnedByActor(task.owner, actor));
+            const includeDone = !!args?.includeDone;
+            const forToday = !!args?.forToday;
+            const today = new Date().toISOString().slice(0, 10);
+
+            let filtered = includeDone
+                ? ownedOnly
+                : ownedOnly.filter((task) => normalize(task.status) !== 'done');
+
+            if (forToday) {
+                filtered = filtered.filter((task) => (task.deadline || '').startsWith(today));
+            }
+
+            const limit = Math.max(1, Math.min(25, Number(args?.limit) || 10));
+            return {
+                tasks: filtered.slice(0, limit),
+                total: filtered.length,
+            };
+        },
+        createTask: async (args: any) => {
+            const owner = actor?.email || actor?.name || actor?.handle;
+            const task = await createTask(args.title, args.status || 'To Do', owner);
+            return { task };
+        }
+    };
+}
 
 const notionToolDeclaration = {
     functionDeclarations: [
@@ -36,6 +81,18 @@ const notionToolDeclaration = {
                     statusFilter: {
                         type: Type.STRING,
                         description: "Optional filter to only return tasks with a specific status (e.g. 'To Do', 'In Progress', 'Done')."
+                    },
+                    forToday: {
+                        type: Type.BOOLEAN,
+                        description: "If true, only return tasks with deadline equal to today."
+                    },
+                    includeDone: {
+                        type: Type.BOOLEAN,
+                        description: "If true, include tasks with Done status."
+                    },
+                    limit: {
+                        type: Type.NUMBER,
+                        description: "Max number of tasks to return (1-25)."
                     }
                 }
             }
@@ -61,9 +118,10 @@ const notionToolDeclaration = {
     ] as any
 };
 
-export async function runAgent(prompt: string) {
+export async function runAgent(prompt: string, actor?: AgentActorContext) {
     const ai = getAIClient();
     const model = process.env.GEMINI_MODEL_NAME || 'gemini-2.0-flash';
+    const toolsImplementation = createToolsImplementation(actor);
 
     console.log(`🧠 Agent received prompt: "${prompt}"`);
 
@@ -72,9 +130,9 @@ export async function runAgent(prompt: string) {
     const chat = ai.chats.create({
         model: model,
         config: {
-            systemInstruction: "You are FlowMind, an AI personal assistant wired directly into the user's Notion workspace. You can read their tasks and add new ones. Always be concise and helpful.",
+            systemInstruction: "You are FlowMind, an AI personal assistant. Be accurate, direct, and action-oriented. Proactively use tools to complete requests when possible. For task questions like 'today', prefer checking pending tasks and today's deadlines without unnecessary back-and-forth. Never reveal data that doesn't belong to the authenticated user context provided by tools.",
             tools: [notionToolDeclaration],
-            temperature: 0.2,
+            temperature: 0.35,
         }
     });
 

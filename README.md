@@ -10,6 +10,33 @@ Users can communicate with their system through chat platforms such as **Telegra
 
 ---
 
+# Current Flow (Implemented Now)
+
+This is the real flow currently running in the app:
+
+1. User signs in with Google via Firebase Auth.
+2. User profile is synced into Notion Users database.
+3. User links Telegram or WhatsApp from dashboard.
+4. Messaging identity is verified:
+	- Telegram via deep-link `/start` verification token
+	- WhatsApp via Twilio code verification
+5. Incoming webhook message is mapped to the linked Notion user.
+6. AI runs with that user context only.
+7. AI reads/creates Notion tasks and replies in the same channel.
+
+Important account rules currently enforced:
+
+- One Telegram account per user.
+- One WhatsApp number per user.
+- To switch, user must delete the existing connection first.
+
+For local testing, one tunnel URL is used for both channels:
+
+- Telegram: `/api/webhooks/telegram`
+- WhatsApp: `/api/webhooks/whatsapp`
+
+---
+
 # Project Vision
 
 Modern work is fragmented.
@@ -174,11 +201,10 @@ Users can link external services such as:
 * Telegram
 * WhatsApp
 * GitHub
-* Notion workspace
 * Gmail
 * Cal.com
 
-The dashboard provides a simple interface for authorizing these services.
+The dashboard currently provides first-class linking/management for Telegram and WhatsApp.
 
 ---
 
@@ -206,29 +232,13 @@ Users can view system activity including:
 
 ### Subscription Plan
 
-The system supports multiple subscription tiers.
+Subscription and billing tiers are roadmap items.
 
-Plans are managed through **Firebase**.
+Current implementation focus is:
 
-Example plans include:
-
-Free Plan
-
-* AI chat assistant
-* basic workflow automation
-* Notion integration
-
-Standard Plan
-
-* integrations with developer tools
-* scheduling automation
-* email automation
-
-Pro Plan
-
-* full AI software engineering agent
-* advanced automation capabilities
-* multi-platform workflow orchestration
+* authentication
+* Notion-backed user/task context
+* Telegram/WhatsApp linking + verified chat access
 
 ---
 
@@ -279,14 +289,16 @@ These APIs run as Vercel serverless functions.
 
 # AI Agent Layer
 
-The AI reasoning engine is powered by **OpenAI**.
+The AI reasoning engine is powered by **Gemini**.
 
 The agent is responsible for:
 
 * understanding user intent
-* selecting appropriate tools
-* executing multi-step workflows
+* selecting available tools
+* executing supported actions
 * generating responses
+
+Current tool surface in production code is task-focused (read/create tasks in Notion).
 
 ---
 
@@ -315,6 +327,19 @@ WhatsApp Integration using **Twilio**
 
 Messages are received through webhooks and forwarded to the FlowMind backend.
 
+Implemented webhook routes:
+
+* Telegram: `/api/webhooks/telegram`
+* WhatsApp: `/api/webhooks/whatsapp`
+* WhatsApp status callback: `/api/webhooks/whatsapp/status`
+
+WhatsApp Sandbox linking UX currently includes:
+
+* simple step-by-step join instructions
+* copy button for sandbox phone number
+* copy button for sandbox join code
+* manage mode (delete existing number before adding another)
+
 ---
 
 # Scheduling Layer
@@ -331,14 +356,21 @@ This allows the AI agent to:
 
 # Authentication and User Data
 
-User authentication and lightweight user data storage are handled by **Firebase**.
+User authentication is handled by **Firebase**.
 
-Firebase manages:
+Operational user data is stored in **Notion** (Users database).
+
+Currently:
 
 * user accounts
 * session authentication
-* subscription status
-* integration tokens
+* identity assertion for account-scoped actions
+
+Notion manages:
+
+* linked Telegram username
+* linked WhatsApp number
+* task/project/knowledge records
 
 ---
 

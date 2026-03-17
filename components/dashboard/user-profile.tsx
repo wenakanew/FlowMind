@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { getUserProfile } from "@/lib/preferences";
+import { useAuth } from "@/components/auth/auth-provider";
 
 function getInitials(name: string): string {
   return name
@@ -17,6 +18,7 @@ export function UserProfile() {
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState(getUserProfile());
   const ref = useRef<HTMLDivElement>(null);
+  const { firebaseEnabled, authReady, authLoading, isAuthenticated, signIn, signOut } = useAuth();
 
   useEffect(() => {
     setProfile(getUserProfile());
@@ -42,13 +44,25 @@ export function UserProfile() {
 
   const initials = getInitials(profile.displayName);
 
+  if (firebaseEnabled && authReady && !isAuthenticated) {
+    return (
+      <button
+        type="button"
+        disabled={authLoading}
+        onClick={() => void signIn()}
+        className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+      >
+        {authLoading ? "Signing in…" : "Sign in with Google"}
+      </button>
+    );
+  }
+
   return (
     <div className="relative" ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-3 rounded-full py-1.5 pl-1.5 pr-3 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-        aria-expanded={open}
         aria-haspopup="menu"
       >
         <span
@@ -65,7 +79,7 @@ export function UserProfile() {
             initials
           )}
         </span>
-        <span className="hidden max-w-[120px] truncate text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 sm:block">
+        <span className="hidden max-w-30 truncate text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 sm:block">
           {profile.displayName}
         </span>
         <svg
@@ -114,12 +128,13 @@ export function UserProfile() {
             type="button"
             onClick={() => {
               setOpen(false);
-              // Placeholder: sign out would clear session / redirect
+              if (!firebaseEnabled) return;
+              void signOut();
             }}
             className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
           >
             <span aria-hidden>⎋</span>
-            Sign out
+            {authLoading ? "Signing out…" : "Sign out"}
           </button>
         </div>
       )}
