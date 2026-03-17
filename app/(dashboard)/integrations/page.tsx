@@ -47,9 +47,9 @@ export default function IntegrationsPage() {
           setWhatsappLinked(Boolean(user?.whatsappNumber));
           setTelegramUsername(user?.telegramUsername || null);
           setWhatsappNumber(user?.whatsappNumber || null);
-          setGmailConnected(Boolean(user?.gmailAccessToken));
-          setGithubConnected(Boolean(user?.githubAccessToken));
-          setCalendarConnected(Boolean(user?.googleCalendarAccessToken));
+          setGmailConnected(Boolean(user?.gmailConnected));
+          setGithubConnected(Boolean(user?.githubConnected));
+          setCalendarConnected(Boolean(user?.googleCalendarConnected));
         }
       } catch {
         if (active) {

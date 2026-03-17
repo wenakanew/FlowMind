@@ -164,6 +164,21 @@ function findPropertyByNameAndTypes(
     ) || null;
 }
 
+function findPropertyByCandidateNamesAndTypes(
+    properties: Record<string, any>,
+    names: string[],
+    allowedTypes: string[],
+) {
+    for (const name of names) {
+        const key = findPropertyByNameAndTypes(properties, name, allowedTypes);
+        if (key) {
+            return key;
+        }
+    }
+
+    return null;
+}
+
 function extractEmailOrRichText(property: any): string | undefined {
     if (!property) return undefined;
     if (property.type === 'email') return property.email || undefined;
@@ -247,7 +262,11 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         };
     }
 
-    const gmailAccessTokenKey = findPropertyByNameAndTypes(properties, 'Gmail Access Token', ['rich_text']);
+    const gmailAccessTokenKey = findPropertyByCandidateNamesAndTypes(
+        properties,
+        ['Gmail Access Token', 'Google Access Token', 'Gmail Token'],
+        ['rich_text'],
+    );
     if (typeof input.gmailAccessToken !== 'undefined' && gmailAccessTokenKey) {
         result[gmailAccessTokenKey] = {
             rich_text: input.gmailAccessToken
@@ -262,7 +281,11 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         };
     }
 
-    const gmailRefreshTokenKey = findPropertyByNameAndTypes(properties, 'Gmail Refresh Token', ['rich_text']);
+    const gmailRefreshTokenKey = findPropertyByCandidateNamesAndTypes(
+        properties,
+        ['Gmail Refresh Token', 'Google Refresh Token', 'Gmail Refresh'],
+        ['rich_text'],
+    );
     if (typeof input.gmailRefreshToken !== 'undefined' && gmailRefreshTokenKey) {
         result[gmailRefreshTokenKey] = {
             rich_text: input.gmailRefreshToken
@@ -277,7 +300,11 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         };
     }
 
-    const githubAccessTokenKey = findPropertyByNameAndTypes(properties, 'GitHub Access Token', ['rich_text']);
+    const githubAccessTokenKey = findPropertyByCandidateNamesAndTypes(
+        properties,
+        ['GitHub Access Token', 'Github Access Token', 'GitHub Token'],
+        ['rich_text'],
+    );
     if (typeof input.githubAccessToken !== 'undefined' && githubAccessTokenKey) {
         result[githubAccessTokenKey] = {
             rich_text: input.githubAccessToken
@@ -292,7 +319,11 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         };
     }
 
-    const calendarAccessTokenKey = findPropertyByNameAndTypes(properties, 'Google Calendar Access Token', ['rich_text']);
+    const calendarAccessTokenKey = findPropertyByCandidateNamesAndTypes(
+        properties,
+        ['Google Calendar Access Token', 'Calendar Access Token', 'Google Calendar Token'],
+        ['rich_text'],
+    );
     if (typeof input.googleCalendarAccessToken !== 'undefined' && calendarAccessTokenKey) {
         result[calendarAccessTokenKey] = {
             rich_text: input.googleCalendarAccessToken
@@ -307,7 +338,11 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         };
     }
 
-    const calendarRefreshTokenKey = findPropertyByNameAndTypes(properties, 'Google Calendar Refresh Token', ['rich_text']);
+    const calendarRefreshTokenKey = findPropertyByCandidateNamesAndTypes(
+        properties,
+        ['Google Calendar Refresh Token', 'Calendar Refresh Token', 'Google Calendar Refresh'],
+        ['rich_text'],
+    );
     if (typeof input.googleCalendarRefreshToken !== 'undefined' && calendarRefreshTokenKey) {
         result[calendarRefreshTokenKey] = {
             rich_text: input.googleCalendarRefreshToken
@@ -322,6 +357,25 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         };
     }
 
+    const requiredIntegrationFields: Array<{ provided: boolean; key: string | null; label: string }> = [
+        { provided: typeof input.gmailAccessToken !== 'undefined', key: gmailAccessTokenKey, label: 'Gmail Access Token' },
+        { provided: typeof input.gmailRefreshToken !== 'undefined', key: gmailRefreshTokenKey, label: 'Gmail Refresh Token' },
+        { provided: typeof input.githubAccessToken !== 'undefined', key: githubAccessTokenKey, label: 'GitHub Access Token' },
+        { provided: typeof input.googleCalendarAccessToken !== 'undefined', key: calendarAccessTokenKey, label: 'Google Calendar Access Token' },
+        { provided: typeof input.googleCalendarRefreshToken !== 'undefined', key: calendarRefreshTokenKey, label: 'Google Calendar Refresh Token' },
+    ];
+
+    const missing = requiredIntegrationFields
+        .filter((field) => field.provided && !field.key)
+        .map((field) => field.label);
+
+    if (missing.length > 0) {
+        throw new Error(
+            `Notion Users database is missing required integration token fields: ${missing.join(', ')}. ` +
+            'Add these as Rich text properties to store connected account tokens.',
+        );
+    }
+
     return result;
 }
 
@@ -333,11 +387,31 @@ function mapNotionUser(page: any): NotionUser {
     const whatsappKey = findPropertyByNameAndTypes(props, 'WhatsApp Number', ['rich_text']);
     const roleKey = findPropertyByNameAndTypes(props, 'Role', ['select']);
     const avatarKey = findPropertyByNameAndTypes(props, 'Avatar URL', ['url']);
-    const gmailAccessTokenKey = findPropertyByNameAndTypes(props, 'Gmail Access Token', ['rich_text']);
-    const gmailRefreshTokenKey = findPropertyByNameAndTypes(props, 'Gmail Refresh Token', ['rich_text']);
-    const githubAccessTokenKey = findPropertyByNameAndTypes(props, 'GitHub Access Token', ['rich_text']);
-    const calendarAccessTokenKey = findPropertyByNameAndTypes(props, 'Google Calendar Access Token', ['rich_text']);
-    const calendarRefreshTokenKey = findPropertyByNameAndTypes(props, 'Google Calendar Refresh Token', ['rich_text']);
+    const gmailAccessTokenKey = findPropertyByCandidateNamesAndTypes(
+        props,
+        ['Gmail Access Token', 'Google Access Token', 'Gmail Token'],
+        ['rich_text'],
+    );
+    const gmailRefreshTokenKey = findPropertyByCandidateNamesAndTypes(
+        props,
+        ['Gmail Refresh Token', 'Google Refresh Token', 'Gmail Refresh'],
+        ['rich_text'],
+    );
+    const githubAccessTokenKey = findPropertyByCandidateNamesAndTypes(
+        props,
+        ['GitHub Access Token', 'Github Access Token', 'GitHub Token'],
+        ['rich_text'],
+    );
+    const calendarAccessTokenKey = findPropertyByCandidateNamesAndTypes(
+        props,
+        ['Google Calendar Access Token', 'Calendar Access Token', 'Google Calendar Token'],
+        ['rich_text'],
+    );
+    const calendarRefreshTokenKey = findPropertyByCandidateNamesAndTypes(
+        props,
+        ['Google Calendar Refresh Token', 'Calendar Refresh Token', 'Google Calendar Refresh'],
+        ['rich_text'],
+    );
 
     return {
         id: page.id,
