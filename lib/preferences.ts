@@ -81,10 +81,10 @@ export function setUserProfile(profile: Partial<UserProfile>): UserProfile {
 }
 
 export function getTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
   const raw = localStorage.getItem(KEYS.theme);
   if (raw === "light" || raw === "dark" || raw === "system") return raw;
-  return "system";
+  return "light";
 }
 
 export function setTheme(theme: Theme): void {

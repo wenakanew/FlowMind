@@ -21,4 +21,5 @@ export interface NotionUser {
   whatsappNumber?: string;
   email?: string;
   role?: string;
+  avatarUrl?: string;
 }

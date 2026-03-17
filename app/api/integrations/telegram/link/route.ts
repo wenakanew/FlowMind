@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
-
-interface TelegramUpdate {
-  message?: {
-    chat?: { id?: number };
-    from?: { username?: string };
-  };
-  edited_message?: {
-    chat?: { id?: number };
-    from?: { username?: string };
-  };
-}
+import { upsertUser } from "@/lib/notion";
+import { getUserByEmail } from "@/lib/notion";
+import { createPendingTelegramLink } from "@/lib/telegram-link-verification";
 
 interface TelegramResponse<T> {
   ok: boolean;
@@ -23,6 +15,9 @@ interface TelegramBotProfile {
 
 interface LinkRequestBody {
   username?: string;
+  email?: string;
+  name?: string;
+  avatarUrl?: string;
 }
 
 const USERNAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{4,31}$/;
@@ -58,15 +53,6 @@ function buildBotLinks(botUsername: string | null) {
   };
 }
 
-function buildStartDeepLink(botUsername: string | null) {
-  if (!botUsername) {
-    return null;
-  }
-
-  const token = `flowmind_link_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
-  return `https://t.me/${botUsername}?start=${token}`;
-}
-
 async function callTelegramApi<T>(token: string, method: string, payload?: object) {
   const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: payload ? "POST" : "GET",
@@ -93,24 +79,6 @@ async function callTelegramApi<T>(token: string, method: string, payload?: objec
   }
 
   return data.result;
-}
-
-function findChatIdFromUpdates(updates: TelegramUpdate[], username: string) {
-  const target = username.toLowerCase();
-
-  for (let index = updates.length - 1; index >= 0; index -= 1) {
-    const update = updates[index];
-    const message = update.message ?? update.edited_message;
-    if (!message?.from?.username || !message.chat?.id) {
-      continue;
-    }
-
-    if (message.from.username.toLowerCase() === target) {
-      return message.chat.id;
-    }
-  }
-
-  return null;
 }
 
 export async function GET() {
@@ -146,8 +114,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { username } = (await request.json()) as LinkRequestBody;
+  const { username, email, name, avatarUrl } = (await request.json()) as LinkRequestBody;
   const parsedUsername = cleanUsername(username || "");
+  const trimmedEmail = email?.trim().toLowerCase();
+  const trimmedName = name?.trim();
 
   if (!USERNAME_PATTERN.test(parsedUsername)) {
     return NextResponse.json(
@@ -156,6 +126,16 @@ export async function POST(request: Request) {
         message: "Please enter a valid Telegram username.",
       },
       { status: 400 },
+    );
+  }
+
+  if (!trimmedEmail || !trimmedName) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "You must be signed in before linking Telegram.",
+      },
+      { status: 401 },
     );
   }
 
@@ -171,67 +151,50 @@ export async function POST(request: Request) {
   }
 
   try {
+    const existingUser = await getUserByEmail(trimmedEmail);
+    const existingTelegram = existingUser?.telegramUsername?.trim().replace(/^@+/, "");
+    if (existingTelegram && existingTelegram.toLowerCase() !== parsedUsername.toLowerCase()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: `This account already has Telegram @${existingTelegram} linked. Delete it first before linking a new one.`,
+        },
+        { status: 409 },
+      );
+    }
+
+    await upsertUser({
+      email: trimmedEmail,
+      name: trimmedName,
+      avatarUrl: avatarUrl?.trim() || undefined,
+    });
+
     let botUsername: string | null = null;
     try {
       botUsername = await resolveBotUsername(botToken);
     } catch {
       botUsername = null;
     }
-    const links = buildBotLinks(botUsername);
+    const token = createPendingTelegramLink({
+      email: trimmedEmail,
+      name: trimmedName,
+      requestedUsername: parsedUsername,
+      avatarUrl: avatarUrl?.trim() || undefined,
+    });
 
-    let updates: TelegramUpdate[] = [];
-    try {
-      updates = await callTelegramApi<TelegramUpdate[]>(
-        botToken,
-        "getUpdates?limit=100&timeout=5&allowed_updates=%5B%22message%22%2C%22edited_message%22%5D",
-      );
-    } catch {
-      updates = [];
-    }
+    const deepLinkStartUrl = botUsername
+      ? `https://t.me/${botUsername}?start=flowmind_link_${token}`
+      : buildBotLinks(botUsername).startUrl;
 
-    const chatId = findChatIdFromUpdates(updates, parsedUsername);
-
-    const welcomeMessage =
-      process.env.TELEGRAM_WELCOME_MESSAGE ||
-      "Welcome to FlowMind! 🎉 You are now connected. You can continue chatting here to run your flows.";
-
-    if (chatId) {
-      await callTelegramApi(botToken, "sendMessage", {
-        chat_id: chatId,
-        text: welcomeMessage,
-      });
-
-      return NextResponse.json({
+    return NextResponse.json(
+      {
         ok: true,
-        username: parsedUsername,
-        message: `Connected. A welcome message was sent to @${parsedUsername}.`,
-      });
-    }
-
-    try {
-      await callTelegramApi(botToken, "sendMessage", {
-        chat_id: `@${parsedUsername}`,
-        text: welcomeMessage,
-      });
-
-      return NextResponse.json({
-        ok: true,
-        username: parsedUsername,
-        message: `Connected. A welcome message was sent to @${parsedUsername}.`,
-      });
-    } catch {
-      const deepLinkStartUrl = buildStartDeepLink(botUsername) || links.startUrl;
-
-      return NextResponse.json(
-        {
-          ok: true,
-          pendingStart: true,
-          startUrl: deepLinkStartUrl,
-          message: "Account linked.",
-        },
-        { status: 200 },
-      );
-    }
+        pendingStart: true,
+        startUrl: deepLinkStartUrl,
+        message: "Verification started. Open Telegram and tap Start to verify your real account.",
+      },
+      { status: 200 },
+    );
   } catch {
     const message =
       "Unable to connect Telegram right now. Verify TELEGRAM_BOT_TOKEN and make sure your bot is reachable.";

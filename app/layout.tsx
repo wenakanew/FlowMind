@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
@@ -30,10 +31,12 @@ export default function RootLayout({
       >
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem('flowmind_theme');if(t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark');})();`,
+            __html: `(function(){var t=localStorage.getItem('flowmind_theme')||'light';if(t==='dark')document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark');})();`,
           }}
         />
-        <ThemeProvider>{children}</ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
