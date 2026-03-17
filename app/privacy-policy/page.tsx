@@ -79,7 +79,7 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">8. Contact</h2>
           <p>
-            Privacy requests and questions: <a className="underline" href="mailto:privacy@flowmind.kaniujeffray.me">privacy@flowmind.kaniujeffray.me</a>
+            Privacy requests and questions: <a className="underline" href="mailto:kaniujeffray@gmail.com">kaniujeffray@gmail.com</a>
           </p>
         </section>
       </div>
