@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/", label: "Overview" },
-  { href: "/tasks", label: "Tasks" },
-  { href: "/projects", label: "Projects" },
-  { href: "/flows", label: "Flows"},
-  { href: "/integrations", label: "Integrations" },
-  { href: "/settings", label: "Settings" },
+  { href: "/", label: "Overview", icon: "○" },
+  { href: "/tasks", label: "Tasks", icon: "✓" },
+  { href: "/projects", label: "Projects", icon: "□" },
+  { href: "/flows", label: "Flows", icon: "◇" },
+  { href: "/integrations", label: "Integrations", icon: "⬡" },
+  { href: "/settings", label: "Settings", icon: "⚙" },
 ] as const;
 
 export function Sidebar() {
