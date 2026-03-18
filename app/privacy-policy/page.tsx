@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | FlowMind",
   description: "FlowMind privacy policy.",
 };
+
+export const dynamic = "force-dynamic";
 
 export default function PrivacyPolicyPage() {
   const effectiveDate = "March 17, 2026";
@@ -14,13 +15,12 @@ export default function PrivacyPolicyPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 pb-12 pt-0 text-zinc-900 dark:text-zinc-100">
       <div className="mb-3 flex items-center justify-center">
-        <Image 
-          src="/flowmind.png" 
-          alt="FlowMind" 
+        <img
+          src="/flowmind.png"
+          alt="FlowMind"
           width={legalLogoWidth}
           height={legalLogoHeight}
           className="h-50 w-auto"
-          priority
         />
       </div>
       <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Terms of Service | FlowMind",
   description: "FlowMind terms of service.",
 };
+
+export const dynamic = "force-dynamic";
 
 export default function TermsOfServicePage() {
   const effectiveDate = "March 17, 2026";
@@ -14,13 +15,12 @@ export default function TermsOfServicePage() {
   return (
     <main className="mx-auto max-w-4xl px-6 pb-12 pt-0 text-zinc-900 dark:text-zinc-100">
       <div className="mb-3 flex items-center justify-center">
-        <Image 
-          src="/flowmind.png" 
-          alt="FlowMind" 
+        <img
+          src="/flowmind.png"
+          alt="FlowMind"
           width={legalLogoWidth}
           height={legalLogoHeight}
           className="h-50 w-auto"
-          priority
         />
       </div>
       <h1 className="text-3xl font-bold tracking-tight">Terms of Service</h1>
