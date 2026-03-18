@@ -41,12 +41,14 @@ export function OverviewConnectSection() {
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
   const profileEmail = useMemo(() => getUserProfile().email, []);
+  const canUseLinkedState = isAuthenticated && Boolean(profileEmail);
+  const effectiveTelegramLinked = canUseLinkedState && telegramLinked;
+  const effectiveWhatsappLinked = canUseLinkedState && whatsappLinked;
+  const effectiveTelegramUsername = canUseLinkedState ? telegramUsername : null;
+  const effectiveWhatsappNumber = canUseLinkedState ? whatsappNumber : null;
 
   useEffect(() => {
     if (!isAuthenticated || !profileEmail) {
-      setTelegramLinked(false);
-      setTelegramUsername(null);
-      setWhatsappNumber(null);
       return;
     }
 
@@ -99,18 +101,18 @@ export function OverviewConnectSection() {
               <span
                 className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                   (item.id === "telegram"
-                    ? telegramLinked
+                    ? effectiveTelegramLinked
                     : item.id === "whatsapp"
-                      ? whatsappLinked
+                      ? effectiveWhatsappLinked
                       : item.connected)
                     ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
                     : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                 }`}
               >
                 {(item.id === "telegram"
-                  ? telegramLinked
+                  ? effectiveTelegramLinked
                   : item.id === "whatsapp"
-                    ? whatsappLinked
+                    ? effectiveWhatsappLinked
                     : item.connected) ? "Connected" : "Not connected"}
               </span>
             </div>
@@ -134,8 +136,8 @@ export function OverviewConnectSection() {
                   className="block w-full rounded-lg bg-zinc-900 py-2.5 text-center text-sm font-medium text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                 >
                   {(item.id === "telegram"
-                    ? telegramLinked
-                    : whatsappLinked) ? "Manage" : "Connect"}
+                    ? effectiveTelegramLinked
+                    : effectiveWhatsappLinked) ? "Manage" : "Connect"}
                 </button>
               ) : (
                 <Link
@@ -152,12 +154,12 @@ export function OverviewConnectSection() {
       <TelegramLinkModal
         open={telegramModalOpen}
         onClose={() => setTelegramModalOpen(false)}
-        currentUsername={telegramUsername}
+        currentUsername={effectiveTelegramUsername}
       />
       <WhatsAppLinkModal
         open={whatsappModalOpen}
         onClose={() => setWhatsappModalOpen(false)}
-        currentNumber={whatsappNumber}
+        currentNumber={effectiveWhatsappNumber}
       />
     </>
   );

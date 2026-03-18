@@ -3,6 +3,22 @@ import { Client } from "@notionhq/client";
 
 dotenv.config({ path: [".env.local", ".env"] });
 
+interface DatabaseRetrieveResult {
+  properties?: Record<string, unknown>;
+  data_sources?: Array<{ id: string }>;
+}
+
+interface DataSourceQueryResult {
+  results: Array<{ id: string; properties?: Record<string, unknown> }>;
+}
+
+interface LooseNotionProperty {
+  type?: string;
+  email?: string;
+  rich_text?: Array<{ plain_text?: string }>;
+  title?: Array<{ plain_text?: string }>;
+}
+
 function normalizeDatabaseId(rawId: string): string {
   const cleaned = rawId.replace(/-/g, "");
   return cleaned.length === 32
@@ -21,21 +37,27 @@ async function main() {
   const notion = new Client({ auth: token });
   const databaseId = normalizeDatabaseId(usersDb);
 
-  const db = await notion.databases.retrieve({ database_id: databaseId });
-  console.log("DB properties:", Object.keys((db as any).properties || {}));
+  const db = (await notion.databases.retrieve({ database_id: databaseId })) as unknown as DatabaseRetrieveResult;
+  console.log("DB properties:", Object.keys(db.properties || {}));
 
-  const dsId: string | undefined = (db as any).data_sources?.[0]?.id;
+  const dsId: string | undefined = db.data_sources?.[0]?.id;
   console.log("Data source id:", dsId);
   if (!dsId) return;
 
-  const response = await (notion as any).dataSources.query({
+  const notionWithDataSources = notion as unknown as {
+    dataSources: {
+      query: (args: { data_source_id: string; page_size: number }) => Promise<DataSourceQueryResult>;
+    };
+  };
+
+  const response = await notionWithDataSources.dataSources.query({
     data_source_id: dsId,
     page_size: 10,
   });
 
   console.log("Rows:", response.results.length);
   for (const page of response.results) {
-    const props = page.properties || {};
+    const props = (page.properties || {}) as Record<string, LooseNotionProperty>;
     const titleKey = Object.keys(props).find((k) => props[k]?.type === "title") || "Name";
     const name = props?.[titleKey]?.title?.[0]?.plain_text;
 
@@ -57,7 +79,7 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(e);
+main().catch((error: unknown) => {
+  console.error(error);
   process.exit(1);
 });

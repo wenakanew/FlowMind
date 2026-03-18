@@ -85,7 +85,7 @@ export async function POST(req: Request) {
                         email: pending.email,
                         name: pending.name,
                         avatarUrl: pending.avatarUrl,
-                        telegramUsername: fromUsername || '',
+                        telegramUsername: fromUsername || `chat:${String(fromId || chatId)}`,
                         telegramChatId: String(fromId || chatId),
                     });
 
@@ -126,11 +126,15 @@ export async function POST(req: Request) {
         // Respond to Telegram immediately to avoid webhook timeout retries.
         void (async () => {
             try {
-                await fetch(`https://api.telegram.org/bot${telegramToken}/sendChatAction`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: chatId, action: 'typing' })
-                });
+                try {
+                    await fetch(`https://api.telegram.org/bot${telegramToken}/sendChatAction`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chat_id: chatId, action: 'typing' })
+                    });
+                } catch (chatActionError) {
+                    console.warn('Telegram chat action failed, continuing:', chatActionError);
+                }
 
                 let replyText = "I am online, but I hit a temporary processing issue. Please try again.";
                 try {
