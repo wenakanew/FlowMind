@@ -19,6 +19,10 @@ interface LinkRequestBody {
   avatarUrl?: string;
 }
 
+function generateSixDigitCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 async function resolveBotUsername(token: string) {
   const configuredBotUsername = process.env.TELEGRAM_BOT_USERNAME
     ?.trim()
@@ -167,6 +171,7 @@ export async function POST(request: Request) {
         email: trimmedEmail,
         name: trimmedName,
         avatarUrl: avatarUrl?.trim() || undefined,
+        preferredCode: generateSixDigitCode(),
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -181,16 +186,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const deepLinkStartUrl = botUsername
-      ? `https://t.me/${botUsername}?start=flowmind_link_${token}`
+    const startUrl = botUsername
+      ? `https://t.me/${botUsername}`
       : buildBotLinks(botUsername).startUrl;
 
     return NextResponse.json(
       {
         ok: true,
         pendingStart: true,
-        startUrl: deepLinkStartUrl,
-        message: "Open Telegram and tap Start. FlowMind will automatically verify and link this Telegram account.",
+        startUrl,
+        verificationCode: token,
+        message: "Open Telegram and tap Start, then paste your 6-digit verification code to complete linking.",
       },
       { status: 200 },
     );

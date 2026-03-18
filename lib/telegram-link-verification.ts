@@ -189,8 +189,12 @@ export async function createPendingTelegramLink(input: {
   email: string;
   name: string;
   avatarUrl?: string;
+  preferredCode?: string;
 }): Promise<string> {
-  const token = crypto.randomUUID().replace(/-/g, "").slice(0, 24);
+  const preferred = (input.preferredCode || "").trim();
+  const token = /^\d{6}$/.test(preferred)
+    ? preferred
+    : crypto.randomUUID().replace(/-/g, "").slice(0, 24);
   const now = Date.now();
   const expiresAt = now + TTL_MS;
 
