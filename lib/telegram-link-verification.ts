@@ -198,9 +198,10 @@ export async function createPendingTelegramLink(input: {
   const now = Date.now();
   const expiresAt = now + TTL_MS;
 
+  let dbId: string;
   try {
     const notion = getNotionClient();
-    const dbId = getPendingLinksDbId();
+    dbId = getPendingLinksDbId();
     const { parent, properties: schema } = await getPendingLinksDataSourceId(notion, dbId);
 
     const properties = buildPendingLinkProperties(schema || {}, input, token, now, expiresAt);
@@ -221,7 +222,7 @@ export async function createPendingTelegramLink(input: {
       console.error(
         "Notion Database Access Error: The FlowMind integration does not have access to the Pending Telegram Links database. " +
         "ACTION REQUIRED: In Notion, open the 'Pending Telegram Links' database, click 'Share', search for 'FlowMind' integration, and grant access. " +
-        "Database ID: " + dbId,
+        "Database ID: " + (dbId || process.env.NOTION_PENDING_TELEGRAM_LINKS_DB_ID),
         { errorMessage, input: { email: input.email, name: input.name } }
       );
     } else {
