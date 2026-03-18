@@ -3,6 +3,14 @@ import { Client } from "@notionhq/client";
 
 dotenv.config({ path: [".env.local", ".env"] });
 
+interface DatabaseRetrieveResult {
+  data_sources?: Array<{ id: string }>;
+}
+
+interface DataSourceQueryResult {
+  results?: Array<{ properties?: Record<string, unknown> }>;
+}
+
 function normalizeDatabaseId(rawId: string): string {
   const cleaned = rawId.replace(/-/g, "");
   return cleaned.length === 32
@@ -18,7 +26,7 @@ async function inspectDatabase(notion: Client, label: string, rawId?: string) {
 
   const databaseId = normalizeDatabaseId(rawId);
   try {
-    const db: any = await notion.databases.retrieve({ database_id: databaseId });
+    const db = (await notion.databases.retrieve({ database_id: databaseId })) as unknown as DatabaseRetrieveResult;
     const dataSourceId: string | undefined = db?.data_sources?.[0]?.id;
 
     if (!dataSourceId) {
@@ -26,7 +34,13 @@ async function inspectDatabase(notion: Client, label: string, rawId?: string) {
       return;
     }
 
-    const query: any = await (notion as any).dataSources.query({
+    const notionWithDataSources = notion as unknown as {
+      dataSources: {
+        query: (args: { data_source_id: string; page_size: number }) => Promise<DataSourceQueryResult>;
+      };
+    };
+
+    const query = await notionWithDataSources.dataSources.query({
       data_source_id: dataSourceId,
       page_size: 5,
     });
@@ -39,9 +53,10 @@ async function inspectDatabase(notion: Client, label: string, rawId?: string) {
     console.log(`  dataSourceId=${dataSourceId}`);
     console.log(`  rowCount(sample)=${query.results?.length ?? 0}`);
     console.log(`  sampleKeys=${keys.join(", ")}`);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.log(`${label}: FAIL`);
-    console.log(`  ${error?.message || String(error)}`);
+    console.log(`  ${message}`);
   }
 }
 
@@ -59,7 +74,7 @@ async function main() {
   await inspectDatabase(notion, "USERS", process.env.NOTION_USERS_DATABASE_ID);
 }
 
-main().catch((e) => {
-  console.error(e);
+main().catch((error: unknown) => {
+  console.error(error);
   process.exit(1);
 });

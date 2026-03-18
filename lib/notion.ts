@@ -220,7 +220,11 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         }
     }
 
-    const telegramKey = findPropertyByNameAndTypes(properties, 'Telegram Username', ['rich_text']);
+    const telegramKey = findPropertyByCandidateNamesAndTypes(
+        properties,
+        ['Telegram Username', 'Telegram', 'Telegram Handle', 'Telegram User'],
+        ['rich_text'],
+    );
     if (typeof input.telegramUsername !== 'undefined' && telegramKey) {
         result[telegramKey] = {
             rich_text: input.telegramUsername
@@ -237,7 +241,7 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
 
     const telegramChatIdKey = findPropertyByCandidateNamesAndTypes(
         properties,
-        ['Telegram Chat ID', 'Telegram ChatId', 'Telegram ID'],
+        ['Telegram Chat ID', 'Telegram ChatId', 'Telegram Chat Id', 'Telegram ID', 'Telegram User ID', 'Telegram From ID'],
         ['rich_text', 'number'],
     );
     if (typeof input.telegramChatId !== 'undefined' && telegramChatIdKey) {
@@ -260,7 +264,11 @@ function buildUserProperties(properties: Record<string, any>, input: UpsertUserI
         }
     }
 
-    const whatsappKey = findPropertyByNameAndTypes(properties, 'WhatsApp Number', ['rich_text']);
+    const whatsappKey = findPropertyByCandidateNamesAndTypes(
+        properties,
+        ['WhatsApp Number', 'Whatsapp Number', 'WhatsApp', 'Whatsapp'],
+        ['rich_text'],
+    );
     if (typeof input.whatsappNumber !== 'undefined' && whatsappKey) {
         result[whatsappKey] = {
             rich_text: input.whatsappNumber
@@ -409,13 +417,21 @@ function mapNotionUser(page: any): NotionUser {
     const props = page.properties;
     const titleKey = Object.keys(props).find((k) => props[k].type === 'title') || 'Name';
     const emailKey = findPropertyByNameAndTypes(props, 'Email', ['email', 'rich_text']);
-    const telegramKey = findPropertyByNameAndTypes(props, 'Telegram Username', ['rich_text']);
+    const telegramKey = findPropertyByCandidateNamesAndTypes(
+        props,
+        ['Telegram Username', 'Telegram', 'Telegram Handle', 'Telegram User'],
+        ['rich_text'],
+    );
     const telegramChatIdKey = findPropertyByCandidateNamesAndTypes(
         props,
-        ['Telegram Chat ID', 'Telegram ChatId', 'Telegram ID'],
+        ['Telegram Chat ID', 'Telegram ChatId', 'Telegram Chat Id', 'Telegram ID', 'Telegram User ID', 'Telegram From ID'],
         ['rich_text', 'number'],
     );
-    const whatsappKey = findPropertyByNameAndTypes(props, 'WhatsApp Number', ['rich_text']);
+    const whatsappKey = findPropertyByCandidateNamesAndTypes(
+        props,
+        ['WhatsApp Number', 'Whatsapp Number', 'WhatsApp', 'Whatsapp'],
+        ['rich_text'],
+    );
     const roleKey = findPropertyByNameAndTypes(props, 'Role', ['select']);
     const avatarKey = findPropertyByNameAndTypes(props, 'Avatar URL', ['url']);
     const gmailAccessTokenKey = findPropertyByCandidateNamesAndTypes(
