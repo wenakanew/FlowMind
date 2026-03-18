@@ -530,7 +530,12 @@ export async function getTasks(statusFilter?: string): Promise<NotionTask[]> {
 /**
  * Creates a new task in the Notion Tasks Database.
  */
-export async function createTask(title: string, status: string = 'To Do', owner?: string): Promise<NotionTask> {
+export async function createTask(
+    title: string,
+    status: string = 'To Do',
+    owner?: string,
+    deadline?: string,
+): Promise<NotionTask> {
     const rawId = process.env.NOTION_TASKS_DATABASE_ID;
     if (!rawId) {
         throw new Error('NOTION_TASKS_DATABASE_ID is not set in environment variables.');
@@ -540,6 +545,7 @@ export async function createTask(title: string, status: string = 'To Do', owner?
     const titleKey = findFirstPropertyNameByType(context.properties, 'title', 'Task Name');
     const statusKey = findPropertyByNameAndTypes(context.properties, 'Status', ['status', 'select']) || 'Status';
     const ownerKey = findPropertyByNameAndTypes(context.properties, 'Owner', ['rich_text']);
+    const deadlineKey = findPropertyByNameAndTypes(context.properties, 'Deadline', ['date']);
 
     const properties: Record<string, any> = {
         [titleKey]: {
@@ -579,6 +585,14 @@ export async function createTask(title: string, status: string = 'To Do', owner?
         };
     }
 
+    if (deadline && deadlineKey) {
+        properties[deadlineKey] = {
+            date: {
+                start: deadline,
+            },
+        };
+    }
+
     const response = await getNotionClient().pages.create({
         parent: { database_id: context.databaseId },
         properties,
@@ -589,7 +603,60 @@ export async function createTask(title: string, status: string = 'To Do', owner?
         url: (response as any).url,
         title,
         status: extractStatus((response as any).properties?.[statusKey]) || status,
+        deadline: extractDate((response as any).properties?.[deadlineKey || 'Deadline']) || deadline,
     };
+}
+
+export async function updateTaskStatus(taskId: string, status: string): Promise<NotionTask | null> {
+    const rawId = process.env.NOTION_TASKS_DATABASE_ID;
+    if (!rawId) {
+        throw new Error('NOTION_TASKS_DATABASE_ID is not set in environment variables.');
+    }
+
+    const context = await getDatabaseContext(rawId, 'Tasks');
+    const statusKey = findPropertyByNameAndTypes(context.properties, 'Status', ['status', 'select']) || 'Status';
+
+    const properties: Record<string, any> = {};
+    if (context.properties[statusKey]?.type === 'select') {
+        properties[statusKey] = {
+            select: {
+                name: status,
+            },
+        };
+    } else {
+        properties[statusKey] = {
+            status: {
+                name: status,
+            },
+        };
+    }
+
+    const response = await getNotionClient().pages.update({
+        page_id: taskId,
+        properties,
+    });
+
+    const mapped = {
+        id: response.id,
+        url: (response as any).url,
+        title: '',
+        status,
+        owner: undefined,
+        deadline: undefined,
+    } as NotionTask;
+
+    try {
+        const props = (response as any).properties || {};
+        const titleKey = Object.keys(props).find((k) => props[k].type === 'title') || 'Task Name';
+        mapped.title = extractTitle(props[titleKey]);
+        mapped.status = extractStatus(props[statusKey]);
+        mapped.owner = extractRichText(props['Owner']);
+        mapped.deadline = extractDate(props['Deadline']);
+    } catch {
+        // keep fallback shape above
+    }
+
+    return mapped;
 }
 
 /**
