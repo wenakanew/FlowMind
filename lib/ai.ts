@@ -248,7 +248,8 @@ function createToolsImplementation(actor?: AgentActorContext): Record<string, Fu
             'List Gmail messages',
             'Send email and reply to existing email',
             'List upcoming Google Calendar events',
-            'Create Google Calendar events',
+            'Create Google Calendar events with Google Meet links',
+            'Schedule meeting and email the Meet URL in one action',
         ],
         github: [
             'Get connected GitHub profile',
@@ -439,7 +440,13 @@ function createToolsImplementation(actor?: AgentActorContext): Record<string, Fu
                 args.startDateTime,
                 args.endDateTime,
                 args.description,
+                args.createMeetLink !== false,
             );
+
+            const meetUrl =
+                event.hangoutLink ||
+                event.conferenceData?.entryPoints?.find((entry) => entry?.entryPointType === 'video')?.uri ||
+                null;
 
             const summary = args.summary || 'Meeting';
             const scheduledTask = await createAuditTask(
@@ -467,10 +474,94 @@ function createToolsImplementation(actor?: AgentActorContext): Record<string, Fu
 
             return {
                 event,
+                meetUrl,
                 taskLogged: Boolean(scheduledTask),
                 scheduledTask,
                 reminderTask,
                 reminderPolicy: 'A reminder task is created for 2 minutes before meeting start.',
+            };
+        },
+        scheduleMeetingAndEmail: async (args: any) => {
+            const token = await getGoogleToken();
+            const event = await calendarCreateEvent(
+                token,
+                args.summary,
+                args.startDateTime,
+                args.endDateTime,
+                args.description,
+                args.createMeetLink !== false,
+            );
+
+            const meetUrl =
+                event.hangoutLink ||
+                event.conferenceData?.entryPoints?.find((entry) => entry?.entryPointType === 'video')?.uri ||
+                null;
+
+            const recipient = String(args.recipientEmail || '').trim();
+            const bodyLines = [
+                `Hello,`,
+                '',
+                args.customIntro || `You are invited to "${args.summary}". Please avail yourself for the meeting.`,
+                '',
+                `Start: ${args.startDateTime}`,
+                `End: ${args.endDateTime}`,
+                meetUrl ? `Google Meet link: ${meetUrl}` : 'Meeting link: (Google Meet link was not returned by Calendar API)',
+                event.htmlLink ? `Calendar event: ${event.htmlLink}` : '',
+                '',
+                'Regards,',
+                actor?.name || 'FlowMind Assistant',
+            ].filter(Boolean);
+
+            let emailResult: { id: string; threadId: string } | null = null;
+            if (recipient) {
+                emailResult = await gmailSendEmail(
+                    token,
+                    recipient,
+                    args.emailSubject || `Meeting invite: ${args.summary}`,
+                    bodyLines.join('\n'),
+                );
+            }
+
+            const summary = args.summary || 'Meeting';
+            const scheduledTask = await createAuditTask(
+                `Meeting scheduled: ${summary}`,
+                'Done',
+                args.startDateTime,
+            );
+            const emailTask = recipient
+                ? await createAuditTask(`Email sent to ${recipient} about meeting ${summary}`, 'Done')
+                : null;
+
+            let reminderTask = null;
+            try {
+                const startMs = Date.parse(args.startDateTime || '');
+                if (!Number.isNaN(startMs)) {
+                    const reminderAt = new Date(startMs - 2 * 60 * 1000).toISOString();
+                    const owner = actor?.email || actor?.name || actor?.handle;
+                    reminderTask = await createTask(
+                        `Reminder: you have a meeting with ${summary} at ${new Date(startMs).toISOString()}`,
+                        'To Do',
+                        owner,
+                        reminderAt,
+                    );
+                }
+            } catch (error) {
+                console.error('Failed to create reminder task:', error);
+            }
+
+            return {
+                event,
+                meetUrl,
+                emailSent: Boolean(emailResult),
+                emailResult,
+                tasksLogged: {
+                    meeting: Boolean(scheduledTask),
+                    email: Boolean(emailTask),
+                    reminder: Boolean(reminderTask),
+                },
+                scheduledTask,
+                emailTask,
+                reminderTask,
             };
         },
     };
@@ -672,7 +763,7 @@ const notionToolDeclaration = {
         },
         {
             name: 'calendarCreateEvent',
-            description: 'Create a Google Calendar event.',
+            description: 'Create a Google Calendar event. Can generate a Google Meet link when createMeetLink is true (default).',
             parameters: {
                 type: Type.OBJECT,
                 properties: {
@@ -680,8 +771,27 @@ const notionToolDeclaration = {
                     startDateTime: { type: Type.STRING, description: 'Event start in ISO datetime format.' },
                     endDateTime: { type: Type.STRING, description: 'Event end in ISO datetime format.' },
                     description: { type: Type.STRING, description: 'Optional event description.' },
+                    createMeetLink: { type: Type.BOOLEAN, description: 'Whether to generate a Google Meet URL for this event. Defaults to true.' },
                 },
                 required: ['summary', 'startDateTime', 'endDateTime'],
+            },
+        },
+        {
+            name: 'scheduleMeetingAndEmail',
+            description: 'Create a Google Calendar meeting (with Google Meet link) and send the meeting link via Gmail in one action.',
+            parameters: {
+                type: Type.OBJECT,
+                properties: {
+                    summary: { type: Type.STRING, description: 'Meeting title.' },
+                    startDateTime: { type: Type.STRING, description: 'Meeting start in ISO datetime format.' },
+                    endDateTime: { type: Type.STRING, description: 'Meeting end in ISO datetime format.' },
+                    description: { type: Type.STRING, description: 'Optional meeting description.' },
+                    recipientEmail: { type: Type.STRING, description: 'Recipient email for meeting link.' },
+                    emailSubject: { type: Type.STRING, description: 'Optional email subject override.' },
+                    customIntro: { type: Type.STRING, description: 'Optional custom email intro line.' },
+                    createMeetLink: { type: Type.BOOLEAN, description: 'Whether to generate a Google Meet URL. Defaults to true.' },
+                },
+                required: ['summary', 'startDateTime', 'endDateTime', 'recipientEmail'],
             },
         },
     ] as any
@@ -720,6 +830,8 @@ export async function runAgent(prompt: string, actor?: AgentActorContext) {
                 "Do not reset the conversation with generic greetings unless the user is explicitly greeting you.",
                 "When you send an email, reply to an email, or schedule a meeting, always ensure there is a corresponding task record in Notion Tasks DB.",
                 "When scheduling a meeting, ensure reminder workflow is represented with a reminder task set for 2 minutes before meeting start.",
+                "You can generate Google Meet links when creating Calendar events; prefer this for meeting requests.",
+                "For requests that ask to schedule a meeting and email the link, use scheduleMeetingAndEmail.",
                 "When user asks 'what can you do?', call getFeatureCatalog and summarize capabilities clearly.",
                 "If a requested integration is not connected, clearly tell the user which integration to connect in the Integrations page.",
                 "For task questions like 'today', prefer checking pending tasks and today's deadlines without unnecessary back-and-forth.",

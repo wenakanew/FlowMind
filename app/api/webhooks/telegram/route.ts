@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { runAgent } from '@/lib/ai';
 import { upsertUser } from '@/lib/notion';
-import { getUserByTelegramUsername } from '@/lib/notion';
-import { getUserByTelegramChatId } from '@/lib/notion';
+import { getUserByTelegramIdentifier } from '@/lib/notion';
 import { consumePendingTelegramLink } from '@/lib/telegram-link-verification';
 import { dispatchDueRemindersForUser } from '@/lib/reminders';
 
@@ -21,15 +20,58 @@ function getFriendlyAiErrorMessage(error: unknown) {
     return "I am online, but I hit a temporary processing issue. Please try again.";
 }
 
-async function sendTelegramMessage(token: string, chatId: number, text: string) {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: chatId,
-            text,
-        }),
-    });
+async function sendTelegramMessage(token: string, chatId: number, text: string, maxRetries = 3) {
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            
+            const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text,
+                }),
+                signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                return;
+            }
+            
+            const errorText = await response.text();
+            lastError = new Error(`Telegram API returned ${response.status}: ${errorText}`);
+            
+            if (response.status >= 500 || response.status === 429) {
+                // Retry on server errors and rate limiting
+                if (attempt < maxRetries) {
+                    await new Promise(r => setTimeout(r, 1000 * attempt)); // Exponential backoff
+                    continue;
+                }
+            } else {
+                // Non-retryable error
+                throw lastError;
+            }
+        } catch (error: any) {
+            lastError = error;
+            console.warn(`Telegram send attempt ${attempt}/${maxRetries} failed:`, error.message);
+            
+            if (attempt < maxRetries) {
+                // Retry on network errors
+                const delayMs = 1000 * attempt;
+                console.log(`Retrying in ${delayMs}ms...`);
+                await new Promise(r => setTimeout(r, delayMs));
+            }
+        }
+    }
+    
+    console.error('Failed to send Telegram message after all retries:', lastError);
+    throw lastError;
 }
 
 function isStartCommand(text: string) {
@@ -85,14 +127,14 @@ export async function POST(req: Request) {
                         email: pending.email,
                         name: pending.name,
                         avatarUrl: pending.avatarUrl,
-                        telegramUsername: fromUsername || `chat:${String(fromId || chatId)}`,
-                        telegramChatId: String(fromId || chatId),
+                        telegramUsername: fromUsername || undefined, // Only store actual username, not fallback
+                        telegramChatId: String(fromId || chatId), // Chat ID is always primary
                     });
 
                     await sendTelegramMessage(
                         telegramToken,
                         chatId,
-                        `✅ Telegram verified and linked successfully.${fromUsername ? ` Linked username: @${fromUsername}.` : ''} You can now chat with FlowMind here.`,
+                        `✅ Telegram verified and linked successfully.${fromUsername ? ` Linked as @${fromUsername}.` : ' Linked to your chat ID.'} You can now chat with FlowMind here.`,
                     );
                 } catch (error: any) {
                     console.error('Telegram verification error:', error);
@@ -127,20 +169,26 @@ export async function POST(req: Request) {
         void (async () => {
             try {
                 try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for typing indicator
+                    
                     await fetch(`https://api.telegram.org/bot${telegramToken}/sendChatAction`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ chat_id: chatId, action: 'typing' })
+                        body: JSON.stringify({ chat_id: chatId, action: 'typing' }),
+                        signal: controller.signal,
                     });
+                    
+                    clearTimeout(timeoutId);
                 } catch (chatActionError) {
                     console.warn('Telegram chat action failed, continuing:', chatActionError);
                 }
 
                 let replyText = "I am online, but I hit a temporary processing issue. Please try again.";
                 try {
-                    const linkedByChatId = await getUserByTelegramChatId(String(fromId || chatId));
-                    const linkedByUsername = fromUsername ? await getUserByTelegramUsername(fromUsername) : null;
-                    const linkedUser = linkedByChatId || linkedByUsername;
+                    // Lookup user by Telegram Chat ID first (works for accounts without usernames),
+                    // then fall back to username if Chat ID match fails
+                    const linkedUser = await getUserByTelegramIdentifier(fromId || chatId);
 
                     if (!linkedUser?.email) {
                         replyText = "This Telegram account is not linked to FlowMind yet. Please link Telegram from your dashboard first.";
@@ -172,17 +220,10 @@ export async function POST(req: Request) {
                 }
 
                 const telegramApiUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-                const response = await fetch(telegramApiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        text: replyText
-                    })
-                });
-
-                if (!response.ok) {
-                    console.error("Failed to send message to Telegram:", await response.text());
+                try {
+                    await sendTelegramMessage(telegramToken, chatId, replyText);
+                } catch (sendError) {
+                    console.error("Failed to send final message to Telegram:", sendError);
                 }
             } catch (error: any) {
                 console.error("Telegram background reply error:", error);
