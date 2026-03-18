@@ -198,9 +198,10 @@ export async function createPendingTelegramLink(input: {
   const now = Date.now();
   const expiresAt = now + TTL_MS;
 
+  let dbId: string;
   try {
     const notion = getNotionClient();
-    const dbId = getPendingLinksDbId();
+    dbId = getPendingLinksDbId();
     const { parent, properties: schema } = await getPendingLinksDataSourceId(notion, dbId);
 
     const properties = buildPendingLinkProperties(schema || {}, input, token, now, expiresAt);
@@ -211,13 +212,25 @@ export async function createPendingTelegramLink(input: {
     });
 
     return token;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Failed to create pending Telegram link in Notion:", {
-      errorMessage,
-      fullError: error,
-      input: { email: input.email, name: input.name },
-    });
+  } catch (error: any) {
+    const errorMessage = error?.message || String(error);
+    const isNotionAccessError = errorMessage.includes('object_not_found') || 
+                                errorMessage.includes('unauthorized') || 
+                                errorMessage.includes('restricted_resource');
+    
+    if (isNotionAccessError) {
+      console.error(
+        "Notion Database Access Error: The FlowMind integration does not have access to the Pending Telegram Links database. " +
+        "ACTION REQUIRED: In Notion, open the 'Pending Telegram Links' database, click 'Share', search for 'FlowMind' integration, and grant access. " +
+        "Database ID: " + (dbId || process.env.NOTION_PENDING_TELEGRAM_LINKS_DB_ID),
+        { errorMessage, input: { email: input.email, name: input.name } }
+      );
+    } else {
+      console.error("Failed to create pending Telegram link in Notion:", {
+        errorMessage,
+        input: { email: input.email, name: input.name },
+      });
+    }
     throw error;
   }
 }
@@ -287,8 +300,20 @@ export async function consumePendingTelegramLink(token: string): Promise<Pending
     });
 
     return payload;
-  } catch (error) {
-    console.error("Failed to consume pending Telegram link from Notion:", error);
+  } catch (error: any) {
+    const message = error?.message || String(error);
+    const isNotionAccessError = message.includes('object_not_found') || message.includes('unauthorized') || message.includes('restricted_resource');
+    
+    if (isNotionAccessError) {
+      console.error(
+        "Notion Database Access Error: The FlowMind integration may not have access to the Pending Telegram Links database. " +
+        "Please ensure the database is shared with the FlowMind integration in Notion. " +
+        "Database ID: " + process.env.NOTION_PENDING_TELEGRAM_LINKS_DB_ID,
+        error
+      );
+    } else {
+      console.error("Failed to consume pending Telegram link from Notion:", error);
+    }
     return null;
   }
 }
