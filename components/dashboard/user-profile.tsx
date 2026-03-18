@@ -48,6 +48,7 @@ export function UserProfile() {
     return (
       <button
         type="button"
+        data-auth-bypass="true"
         disabled={authLoading}
         onClick={() => void signIn()}
         className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"

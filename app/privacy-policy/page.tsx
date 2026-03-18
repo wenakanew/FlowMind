@@ -5,11 +5,24 @@ export const metadata: Metadata = {
   description: "FlowMind privacy policy.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function PrivacyPolicyPage() {
   const effectiveDate = "March 17, 2026";
+  const legalLogoWidth = 520;
+  const legalLogoHeight = 160;
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12 text-zinc-900 dark:text-zinc-100">
+    <main className="mx-auto max-w-4xl px-6 pb-12 pt-0 text-zinc-900 dark:text-zinc-100">
+      <div className="mb-3 flex items-center justify-center">
+        <img
+          src="/flowmind.png"
+          alt="FlowMind"
+          width={legalLogoWidth}
+          height={legalLogoHeight}
+          className="h-50 w-auto"
+        />
+      </div>
       <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Effective date: {effectiveDate}</p>
 

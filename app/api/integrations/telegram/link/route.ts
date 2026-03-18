@@ -158,11 +158,25 @@ export async function POST(request: Request) {
     } catch {
       botUsername = null;
     }
-    const token = createPendingTelegramLink({
-      email: trimmedEmail,
-      name: trimmedName,
-      avatarUrl: avatarUrl?.trim() || undefined,
-    });
+
+    // Create pending link in Notion (now async)
+    let token: string;
+    try {
+      token = await createPendingTelegramLink({
+        email: trimmedEmail,
+        name: trimmedName,
+        avatarUrl: avatarUrl?.trim() || undefined,
+      });
+    } catch (error) {
+      console.error("Failed to create pending link:", error);
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Failed to create verification link. Please try again.",
+        },
+        { status: 500 },
+      );
+    }
 
     const deepLinkStartUrl = botUsername
       ? `https://t.me/${botUsername}?start=flowmind_link_${token}`
