@@ -4,6 +4,7 @@ import { upsertUser } from '@/lib/notion';
 import { getUserByTelegramUsername } from '@/lib/notion';
 import { getUserByTelegramChatId } from '@/lib/notion';
 import { consumePendingTelegramLink } from '@/lib/telegram-link-verification';
+import { dispatchDueRemindersForUser } from '@/lib/reminders';
 
 function getFriendlyAiErrorMessage(error: unknown) {
     const raw = error instanceof Error ? error.message : String(error ?? "");
@@ -128,6 +129,17 @@ export async function POST(req: Request) {
                     if (!linkedUser?.email) {
                         replyText = "This Telegram account is not linked to FlowMind yet. Please link Telegram from your dashboard first.";
                     } else {
+                        try {
+                            await dispatchDueRemindersForUser({
+                                email: linkedUser.email,
+                                preferredChannel: 'telegram',
+                                telegramChatId: linkedUser.telegramChatId,
+                                whatsappNumber: linkedUser.whatsappNumber,
+                            });
+                        } catch (reminderError) {
+                            console.error('Reminder dispatch warning (Telegram):', reminderError);
+                        }
+
                         const aiReply = await runAgent(text, {
                             email: linkedUser.email,
                             name: linkedUser.name,

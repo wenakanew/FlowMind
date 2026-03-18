@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runAgent } from "@/lib/ai";
 import { getUserByWhatsAppNumber } from "@/lib/notion";
+import { dispatchDueRemindersForUser } from "@/lib/reminders";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,17 @@ export async function POST(req: Request) {
           status: 200,
           headers: { "Content-Type": "text/xml; charset=utf-8" },
         });
+      }
+
+      try {
+        await dispatchDueRemindersForUser({
+          email: linkedUser.email,
+          preferredChannel: "whatsapp",
+          whatsappNumber: linkedUser.whatsappNumber,
+          telegramChatId: linkedUser.telegramChatId,
+        });
+      } catch (error) {
+        console.error("Reminder dispatch warning (WhatsApp):", error);
       }
 
       const aiReply = await Promise.race([
