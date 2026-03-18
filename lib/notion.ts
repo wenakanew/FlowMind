@@ -777,6 +777,34 @@ export async function getUserByTelegramChatId(chatId: string | number): Promise<
     return users.find((user) => (user.telegramChatId || '').trim() === normalized) || null;
 }
 
+/**
+ * Look up a Telegram user by Chat ID first (reliable for all accounts),
+ * then fall back to username if available.
+ * 
+ * This strategy handles accounts without usernames:
+ * - Chat ID: Unique, permanent identifier for all Telegram accounts
+ * - Username: Optional, user-created identifier
+ * 
+ * Priority: Chat ID > Username
+ */
+export async function getUserByTelegramIdentifier(
+    chatIdOrUsername: string | number,
+): Promise<NotionUser | null> {
+    // Try Chat ID first (works for all accounts)
+    const chatIdUser = await getUserByTelegramChatId(chatIdOrUsername);
+    if (chatIdUser) {
+        return chatIdUser;
+    }
+
+    // Fall back to username lookup if available
+    const usernameUser = await getUserByTelegramUsername(String(chatIdOrUsername));
+    if (usernameUser) {
+        return usernameUser;
+    }
+
+    return null;
+}
+
 export async function getUserByWhatsAppNumber(phone: string): Promise<NotionUser | null> {
     const normalize = (value: string) => value
         .trim()

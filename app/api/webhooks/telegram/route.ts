@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { runAgent } from '@/lib/ai';
 import { upsertUser } from '@/lib/notion';
-import { getUserByTelegramUsername } from '@/lib/notion';
-import { getUserByTelegramChatId } from '@/lib/notion';
+import { getUserByTelegramIdentifier } from '@/lib/notion';
 import { consumePendingTelegramLink } from '@/lib/telegram-link-verification';
 import { dispatchDueRemindersForUser } from '@/lib/reminders';
 
@@ -128,14 +127,14 @@ export async function POST(req: Request) {
                         email: pending.email,
                         name: pending.name,
                         avatarUrl: pending.avatarUrl,
-                        telegramUsername: fromUsername || `chat:${String(fromId || chatId)}`,
-                        telegramChatId: String(fromId || chatId),
+                        telegramUsername: fromUsername || undefined, // Only store actual username, not fallback
+                        telegramChatId: String(fromId || chatId), // Chat ID is always primary
                     });
 
                     await sendTelegramMessage(
                         telegramToken,
                         chatId,
-                        `✅ Telegram verified and linked successfully.${fromUsername ? ` Linked username: @${fromUsername}.` : ''} You can now chat with FlowMind here.`,
+                        `✅ Telegram verified and linked successfully.${fromUsername ? ` Linked as @${fromUsername}.` : ' Linked to your chat ID.'} You can now chat with FlowMind here.`,
                     );
                 } catch (error: any) {
                     console.error('Telegram verification error:', error);
@@ -187,9 +186,9 @@ export async function POST(req: Request) {
 
                 let replyText = "I am online, but I hit a temporary processing issue. Please try again.";
                 try {
-                    const linkedByChatId = await getUserByTelegramChatId(String(fromId || chatId));
-                    const linkedByUsername = fromUsername ? await getUserByTelegramUsername(fromUsername) : null;
-                    const linkedUser = linkedByChatId || linkedByUsername;
+                    // Lookup user by Telegram Chat ID first (works for accounts without usernames),
+                    // then fall back to username if Chat ID match fails
+                    const linkedUser = await getUserByTelegramIdentifier(fromId || chatId);
 
                     if (!linkedUser?.email) {
                         replyText = "This Telegram account is not linked to FlowMind yet. Please link Telegram from your dashboard first.";
