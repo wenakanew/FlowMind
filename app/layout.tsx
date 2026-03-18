@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FlowMind Dashboard",
   description: "AI-powered personal workflow operating system dashboard for FlowMind.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
@@ -26,6 +29,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+            <head>
+              <link rel="icon" href="/favicon.png" type="image/png" />
+            </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

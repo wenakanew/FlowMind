@@ -70,6 +70,7 @@ Set these in local `.env` and in Vercel Project Settings.
 - `NOTION_PROJECTS_DATABASE_ID`
 - `NOTION_KNOWLEDGE_DATABASE_ID`
 - `NOTION_USERS_DATABASE_ID`
+- `NOTION_PENDING_TELEGRAM_LINKS_DB_ID` (required for Telegram verification)
 
 ### Telegram
 
@@ -124,9 +125,18 @@ Set these in local `.env` and in Vercel Project Settings.
 ## Production (Vercel)
 
 1. Import project into Vercel.
-2. Add all environment variables.
-3. Deploy to production.
-4. Set provider callbacks and webhooks:
+2. Create required Notion databases:
+   - **Pending Telegram Links DB**: Used for verification token storage (prevents serverless instance loss)
+     - Create a database with these properties:
+       - `Token` (Title) - The verification token
+       - `Email` (Email)
+       - `Name` (Rich Text)
+       - `Avatar URL` (URL)
+       - `Created At` (Number) - Unix timestamp
+       - `Expires At` (Number) - Unix timestamp (30 min TTL)
+3. Add all environment variables including `NOTION_PENDING_TELEGRAM_LINKS_DB_ID`.
+4. Deploy to production.
+5. Set provider callbacks and webhooks:
    - Google callback: `https://flowmind.kaniujeffray.me/api/integrations/google/callback`
    - GitHub callback: `https://flowmind.kaniujeffray.me/api/integrations/github/callback`
    - Telegram webhook: `https://flowmind.kaniujeffray.me/api/webhooks/telegram`

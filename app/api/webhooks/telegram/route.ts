@@ -72,7 +72,8 @@ export async function POST(req: Request) {
         if (verificationToken) {
             void (async () => {
                 try {
-                    const pending = consumePendingTelegramLink(verificationToken);
+                    // consumePendingTelegramLink is now async
+                    const pending = await consumePendingTelegramLink(verificationToken);
 
                     if (!pending) {
                         await sendTelegramMessage(
