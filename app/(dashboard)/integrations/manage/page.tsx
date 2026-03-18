@@ -34,12 +34,12 @@ export default function IntegrationsManagePage() {
 
   const connect = (id: ItemState["id"]) => {
     if (!profile.email) return;
-    if (id === "github") {
-      window.location.href = `/api/integrations/github/authorize?email=${encodeURIComponent(profile.email)}`;
-      return;
-    }
     if (id === "gmail" || id === "calendar") {
       window.location.href = `/api/integrations/google/authorize?email=${encodeURIComponent(profile.email)}`;
+      return;
+    }
+    if (id === "github") {
+      window.location.href = `/api/integrations/github/authorize?email=${encodeURIComponent(profile.email)}`;
       return;
     }
     window.location.href = "/integrations";

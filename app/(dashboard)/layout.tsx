@@ -4,6 +4,8 @@ import { Header } from "@/components/dashboard/header";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 
+export const dynamic = "force-dynamic";
+
 export default function DashboardLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {

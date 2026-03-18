@@ -35,17 +35,46 @@ function normalizeDatabaseId(rawId: string): string {
 }
 
 async function getPendingLinksDataSourceId(notion: Client, rawDbId: string) {
-  const databaseId = normalizeDatabaseId(rawDbId);
-  const db: any = await (notion as any).databases.retrieve({
-    database_id: databaseId,
-  });
+  const notionAny = notion as any;
+  const normalizedId = normalizeDatabaseId(rawDbId);
 
-  const dataSourceId: string | undefined = db?.data_sources?.[0]?.id;
-  if (!dataSourceId) {
-    throw new Error("No data source found for NOTION_PENDING_TELEGRAM_LINKS_DB_ID.");
+  // Allow users to provide either a Data Source ID or a Database ID.
+  try {
+    if (notionAny.dataSources?.retrieve) {
+      const dataSource = await notionAny.dataSources.retrieve({
+        data_source_id: normalizedId,
+      });
+
+      if (dataSource?.id) {
+        const parentDatabaseId = dataSource?.parent?.database_id
+          ? normalizeDatabaseId(dataSource.parent.database_id)
+          : undefined;
+
+        return {
+          databaseId: parentDatabaseId,
+          dataSourceId: dataSource.id as string,
+          parent: { data_source_id: dataSource.id as string },
+        };
+      }
+    }
+  } catch {
+    // Fall through and try as database id.
   }
 
-  return { databaseId, dataSourceId };
+  const db: any = await notionAny.databases.retrieve({
+    database_id: normalizedId,
+  });
+
+  const databaseId = normalizeDatabaseId(db?.id || normalizedId);
+  const dataSourceId: string | undefined = db?.data_sources?.[0]?.id;
+
+  return {
+    databaseId,
+    dataSourceId: dataSourceId || null,
+    parent: dataSourceId
+      ? { data_source_id: dataSourceId }
+      : { database_id: databaseId },
+  };
 }
 
 export async function createPendingTelegramLink(input: {
@@ -60,10 +89,10 @@ export async function createPendingTelegramLink(input: {
   try {
     const notion = getNotionClient();
     const dbId = getPendingLinksDbId();
-    const { databaseId } = await getPendingLinksDataSourceId(notion, dbId);
+    const { parent } = await getPendingLinksDataSourceId(notion, dbId);
 
     await notion.pages.create({
-      parent: { database_id: databaseId },
+      parent: parent as any,
       properties: {
         "Token": {
           title: [{ text: { content: token } }],
@@ -87,8 +116,14 @@ export async function createPendingTelegramLink(input: {
     });
 
     return token;
+    return token;
   } catch (error) {
-    console.error("Failed to create pending Telegram link in Notion:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Failed to create pending Telegram link in Notion:", {
+      errorMessage,
+      fullError: error,
+      input: { email: input.email, name: input.name },
+    });
     throw error;
   }
 }
@@ -96,15 +131,21 @@ export async function createPendingTelegramLink(input: {
 export async function consumePendingTelegramLink(token: string): Promise<PendingTelegramLink | null> {
   try {
     const notion = getNotionClient();
+    const notionAny = notion as any;
     const dbId = getPendingLinksDbId();
-    const { dataSourceId } = await getPendingLinksDataSourceId(notion, dbId);
+    const { databaseId, dataSourceId } = await getPendingLinksDataSourceId(notion, dbId);
     const now = Date.now();
 
-    // Query via Data Sources API (compatible with current Notion SDK)
-    const response: any = await (notion as any).dataSources.query({
-      data_source_id: dataSourceId,
-      page_size: 100,
-    });
+    // Query via Data Sources API when available, fallback to Databases API.
+    const response: any = dataSourceId && notionAny.dataSources?.query
+      ? await notionAny.dataSources.query({
+          data_source_id: dataSourceId,
+          page_size: 100,
+        })
+      : await notionAny.databases.query({
+          database_id: databaseId,
+          page_size: 100,
+        });
 
     const page = (response?.results || []).find((item: any) => {
       const value = item?.properties?.["Token"]?.title?.[0]?.plain_text;
