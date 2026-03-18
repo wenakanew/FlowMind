@@ -159,6 +159,20 @@ export async function POST(req: Request) {
                     );
                 } catch (error) {
                     console.error('Telegram start prompt error:', error);
+                    // Try to send fallback message without retries (simple attempt)
+                    try {
+                        const fallbackUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
+                        await fetch(fallbackUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                chat_id: chatId,
+                                text: 'Welcome to FlowMind. Please link your account from the dashboard.',
+                            }),
+                        });
+                    } catch (fallbackError) {
+                        console.error('Fallback message also failed:', fallbackError);
+                    }
                 }
             })();
 
