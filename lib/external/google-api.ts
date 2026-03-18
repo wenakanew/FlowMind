@@ -17,6 +17,10 @@ interface CalendarEvent {
   summary?: string;
   description?: string;
   htmlLink?: string;
+  hangoutLink?: string;
+  conferenceData?: {
+    entryPoints?: Array<{ entryPointType?: string; uri?: string }>;
+  };
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
 }
@@ -202,18 +206,35 @@ export async function calendarCreateEvent(
   startDateTime: string,
   endDateTime: string,
   description?: string,
+  createMeetLink = true,
 ) {
+  const requestId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  const body: Record<string, unknown> = {
+    summary,
+    description,
+    start: { dateTime: startDateTime },
+    end: { dateTime: endDateTime },
+  };
+
+  if (createMeetLink) {
+    body.conferenceData = {
+      createRequest: {
+        requestId,
+        conferenceSolutionKey: { type: "hangoutsMeet" },
+      },
+    };
+  }
+
   return googleRequest<CalendarEvent>(
     accessToken,
-    `${GOOGLE_CALENDAR_BASE}/calendars/primary/events`,
+    `${GOOGLE_CALENDAR_BASE}/calendars/primary/events?conferenceDataVersion=1`,
     {
       method: "POST",
-      body: JSON.stringify({
-        summary,
-        description,
-        start: { dateTime: startDateTime },
-        end: { dateTime: endDateTime },
-      }),
+      body: JSON.stringify(body),
     },
   );
 }
