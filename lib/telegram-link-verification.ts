@@ -11,6 +11,8 @@ interface PendingTelegramLink {
 
 const TTL_MS = 1000 * 60 * 30; // 30 minutes
 
+type NotionProps = Record<string, any>;
+
 function getNotionClient() {
   const apiKey = process.env.NOTION_API_KEY;
   if (!apiKey) {
@@ -49,11 +51,13 @@ async function getPendingLinksDataSourceId(notion: Client, rawDbId: string) {
         const parentDatabaseId = dataSource?.parent?.database_id
           ? normalizeDatabaseId(dataSource.parent.database_id)
           : undefined;
+        const properties: NotionProps = dataSource?.properties || {};
 
         return {
           databaseId: parentDatabaseId,
           dataSourceId: dataSource.id as string,
           parent: { data_source_id: dataSource.id as string },
+          properties,
         };
       }
     }
@@ -67,6 +71,16 @@ async function getPendingLinksDataSourceId(notion: Client, rawDbId: string) {
 
   const databaseId = normalizeDatabaseId(db?.id || normalizedId);
   const dataSourceId: string | undefined = db?.data_sources?.[0]?.id;
+  let properties: NotionProps = db?.properties || {};
+
+  if ((!properties || Object.keys(properties).length === 0) && dataSourceId && notionAny.dataSources?.retrieve) {
+    try {
+      const ds: any = await notionAny.dataSources.retrieve({ data_source_id: dataSourceId });
+      properties = ds?.properties || properties;
+    } catch {
+      // ignore
+    }
+  }
 
   return {
     databaseId,
@@ -74,7 +88,101 @@ async function getPendingLinksDataSourceId(notion: Client, rawDbId: string) {
     parent: dataSourceId
       ? { data_source_id: dataSourceId }
       : { database_id: databaseId },
+    properties,
   };
+}
+
+function findPropertyByType(properties: NotionProps, type: string) {
+  return Object.keys(properties).find((key) => properties[key]?.type === type) || null;
+}
+
+function findPropertyByNameAndTypes(properties: NotionProps, names: string[], allowedTypes: string[]) {
+  for (const name of names) {
+    const exact = Object.keys(properties).find((k) => k === name && allowedTypes.includes(properties[k]?.type));
+    if (exact) return exact;
+
+    const insensitive = Object.keys(properties).find(
+      (k) => k.toLowerCase() === name.toLowerCase() && allowedTypes.includes(properties[k]?.type),
+    );
+    if (insensitive) return insensitive;
+  }
+
+  return null;
+}
+
+function getRichText(property: any): string {
+  if (!property) return "";
+  if (property.type === "title" && property.title?.length) return property.title[0].plain_text || "";
+  if (property.type === "rich_text" && property.rich_text?.length) return property.rich_text[0].plain_text || "";
+  if (property.type === "email" && property.email) return property.email;
+  return "";
+}
+
+function findTokenInPage(item: any): string {
+  const props: NotionProps = item?.properties || {};
+
+  const namedKey = findPropertyByNameAndTypes(props, ["Token"], ["title", "rich_text"]);
+  if (namedKey) {
+    return getRichText(props[namedKey]).trim();
+  }
+
+  // fallback: first title property
+  const titleKey = findPropertyByType(props, "title");
+  if (titleKey) {
+    return getRichText(props[titleKey]).trim();
+  }
+
+  return "";
+}
+
+function buildPendingLinkProperties(
+  schema: NotionProps,
+  input: { email: string; name: string; avatarUrl?: string },
+  token: string,
+  now: number,
+  expiresAt: number,
+): NotionProps {
+  const properties: NotionProps = {};
+
+  const titleKey = findPropertyByNameAndTypes(schema, ["Token"], ["title"]) || findPropertyByType(schema, "title");
+  if (!titleKey) {
+    throw new Error("Pending Telegram links database is missing a title property (recommended name: Token).");
+  }
+
+  properties[titleKey] = {
+    title: [{ text: { content: token } }],
+  };
+
+  const emailKey = findPropertyByNameAndTypes(schema, ["Email"], ["email", "rich_text"]);
+  if (emailKey) {
+    if (schema[emailKey]?.type === "email") {
+      properties[emailKey] = { email: input.email };
+    } else {
+      properties[emailKey] = { rich_text: [{ text: { content: input.email } }] };
+    }
+  }
+
+  const nameKey = findPropertyByNameAndTypes(schema, ["Name", "User Name"], ["rich_text"]);
+  if (nameKey) {
+    properties[nameKey] = { rich_text: [{ text: { content: input.name } }] };
+  }
+
+  const avatarKey = findPropertyByNameAndTypes(schema, ["Avatar URL", "Avatar", "Photo URL"], ["url"]);
+  if (avatarKey) {
+    properties[avatarKey] = { url: input.avatarUrl || null };
+  }
+
+  const createdAtKey = findPropertyByNameAndTypes(schema, ["Created At", "Created"], ["number"]);
+  if (createdAtKey) {
+    properties[createdAtKey] = { number: now };
+  }
+
+  const expiresAtKey = findPropertyByNameAndTypes(schema, ["Expires At", "Expires"], ["number"]);
+  if (expiresAtKey) {
+    properties[expiresAtKey] = { number: expiresAt };
+  }
+
+  return properties;
 }
 
 export async function createPendingTelegramLink(input: {
@@ -89,33 +197,15 @@ export async function createPendingTelegramLink(input: {
   try {
     const notion = getNotionClient();
     const dbId = getPendingLinksDbId();
-    const { parent } = await getPendingLinksDataSourceId(notion, dbId);
+    const { parent, properties: schema } = await getPendingLinksDataSourceId(notion, dbId);
+
+    const properties = buildPendingLinkProperties(schema || {}, input, token, now, expiresAt);
 
     await notion.pages.create({
       parent: parent as any,
-      properties: {
-        "Token": {
-          title: [{ text: { content: token } }],
-        },
-        "Email": {
-          email: input.email,
-        },
-        "Name": {
-          rich_text: [{ text: { content: input.name } }],
-        },
-        "Avatar URL": {
-          url: input.avatarUrl || null,
-        },
-        "Created At": {
-          number: now,
-        },
-        "Expires At": {
-          number: expiresAt,
-        },
-      },
+      properties,
     });
 
-    return token;
     return token;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -147,10 +237,7 @@ export async function consumePendingTelegramLink(token: string): Promise<Pending
           page_size: 100,
         });
 
-    const page = (response?.results || []).find((item: any) => {
-      const value = item?.properties?.["Token"]?.title?.[0]?.plain_text;
-      return value === token;
-    });
+    const page = (response?.results || []).find((item: any) => findTokenInPage(item) === token);
 
     if (!page) {
       return null;
@@ -159,7 +246,8 @@ export async function consumePendingTelegramLink(token: string): Promise<Pending
     const props = page.properties as Record<string, any>;
 
     // Check if expired
-    const expiresAt = props["Expires At"]?.number;
+    const expiresKey = findPropertyByNameAndTypes(props, ["Expires At", "Expires"], ["number"]);
+    const expiresAt = expiresKey ? props[expiresKey]?.number : undefined;
     if (!expiresAt || now > expiresAt) {
       // Delete expired token
       try {
@@ -174,12 +262,17 @@ export async function consumePendingTelegramLink(token: string): Promise<Pending
     }
 
     // Extract payload
+    const emailKey = findPropertyByNameAndTypes(props, ["Email"], ["email", "rich_text"]);
+    const nameKey = findPropertyByNameAndTypes(props, ["Name", "User Name"], ["rich_text", "title"]);
+    const avatarKey = findPropertyByNameAndTypes(props, ["Avatar URL", "Avatar", "Photo URL"], ["url"]);
+    const createdAtKey = findPropertyByNameAndTypes(props, ["Created At", "Created"], ["number"]);
+
     const payload: PendingTelegramLink = {
-      email: props["Email"]?.email || "",
-      name: props["Name"]?.rich_text?.[0]?.plain_text || "",
-      avatarUrl: props["Avatar URL"]?.url || undefined,
-      token: props["Token"]?.title?.[0]?.plain_text || token,
-      createdAt: props["Created At"]?.number || now,
+      email: emailKey ? getRichText(props[emailKey]) : "",
+      name: nameKey ? getRichText(props[nameKey]) : "",
+      avatarUrl: avatarKey ? props[avatarKey]?.url || undefined : undefined,
+      token: findTokenInPage(page) || token,
+      createdAt: createdAtKey ? props[createdAtKey]?.number || now : now,
       expiresAt,
     };
 
