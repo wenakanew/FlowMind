@@ -28,6 +28,24 @@ interface GitHubPullRequest {
   html_url: string;
 }
 
+interface GitHubSearchItem {
+  id: number;
+  number: number;
+  title: string;
+  state: string;
+  html_url: string;
+  repository_url: string;
+  pull_request?: {
+    url: string;
+  };
+}
+
+interface GitHubSearchResponse {
+  total_count: number;
+  incomplete_results: boolean;
+  items: GitHubSearchItem[];
+}
+
 const GITHUB_API_BASE = "https://api.github.com";
 
 async function githubRequest<T>(
@@ -128,4 +146,46 @@ export async function githubCreatePullRequest(
       body: JSON.stringify({ title, head, base, body }),
     },
   );
+}
+
+function parseRepoFromRepositoryUrl(repositoryUrl: string): { owner?: string; repo?: string } {
+  const parts = repositoryUrl.split("/").filter(Boolean);
+  const repo = parts[parts.length - 1];
+  const owner = parts[parts.length - 2];
+  return { owner, repo };
+}
+
+export async function githubSearchIssues(
+  accessToken: string,
+  query: string,
+  limit = 30,
+): Promise<Array<{
+  id: number;
+  number: number;
+  title: string;
+  state: string;
+  html_url: string;
+  owner?: string;
+  repo?: string;
+  isPullRequest: boolean;
+}>> {
+  const clamped = Math.max(1, Math.min(100, Number(limit) || 30));
+  const response = await githubRequest<GitHubSearchResponse>(
+    accessToken,
+    `/search/issues?q=${encodeURIComponent(query)}&per_page=${clamped}`,
+  );
+
+  return (response.items || []).map((item) => {
+    const { owner, repo } = parseRepoFromRepositoryUrl(item.repository_url || "");
+    return {
+      id: item.id,
+      number: item.number,
+      title: item.title,
+      state: item.state,
+      html_url: item.html_url,
+      owner,
+      repo,
+      isPullRequest: Boolean(item.pull_request),
+    };
+  });
 }

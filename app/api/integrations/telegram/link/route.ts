@@ -160,6 +160,7 @@ export async function POST(request: Request) {
     }
 
     // Create pending link in Notion (now async)
+    // Create pending link in Notion (now async)
     let token: string;
     try {
       token = await createPendingTelegramLink({
@@ -168,11 +169,13 @@ export async function POST(request: Request) {
         avatarUrl: avatarUrl?.trim() || undefined,
       });
     } catch (error) {
-      console.error("Failed to create pending link:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to create pending link:", errorMessage);
       return NextResponse.json(
         {
           ok: false,
           message: "Failed to create verification link. Please try again.",
+          error: errorMessage,
         },
         { status: 500 },
       );
@@ -191,7 +194,9 @@ export async function POST(request: Request) {
       },
       { status: 200 },
     );
-  } catch {
+  } catch (error) {
+    const catchAllMessage = error instanceof Error ? error.message : String(error);
+    console.error("Telegram link POST error:", catchAllMessage);
     const message =
       "Unable to connect Telegram right now. Verify TELEGRAM_BOT_TOKEN and make sure your bot is reachable.";
 
@@ -199,6 +204,7 @@ export async function POST(request: Request) {
       {
         ok: false,
         message,
+        debug: catchAllMessage,
       },
       { status: 500 },
     );
