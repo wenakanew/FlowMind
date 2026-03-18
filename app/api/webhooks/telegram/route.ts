@@ -32,17 +32,13 @@ async function sendTelegramMessage(token: string, chatId: number, text: string) 
     });
 }
 
-function extractVerificationToken(text: string) {
-    if (!text.startsWith('/start')) {
-        return null;
-    }
+function isStartCommand(text: string) {
+    return text.trim().toLowerCase().startsWith('/start');
+}
 
-    const payload = text.split(/\s+/, 2)[1];
-    if (!payload || !payload.startsWith('flowmind_link_')) {
-        return null;
-    }
-
-    return payload.replace('flowmind_link_', '').trim();
+function extractSixDigitCode(text: string) {
+    const clean = text.trim();
+    return /^\d{6}$/.test(clean) ? clean : null;
 }
 
 export async function POST(req: Request) {
@@ -69,18 +65,18 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: true });
         }
 
-        const verificationToken = extractVerificationToken(text);
-        if (verificationToken) {
+        const verificationCode = extractSixDigitCode(text);
+
+        if (verificationCode) {
             void (async () => {
                 try {
-                    // consumePendingTelegramLink is now async
-                    const pending = await consumePendingTelegramLink(verificationToken);
+                    const pending = await consumePendingTelegramLink(verificationCode);
 
                     if (!pending) {
                         await sendTelegramMessage(
                             telegramToken,
                             chatId,
-                            "Verification link expired or invalid. Please reconnect Telegram from your FlowMind dashboard.",
+                            "Invalid or expired verification code. Please reconnect Telegram from your FlowMind dashboard to get a new code.",
                         );
                         return;
                     }
@@ -96,7 +92,7 @@ export async function POST(req: Request) {
                     await sendTelegramMessage(
                         telegramToken,
                         chatId,
-                        `✅ Telegram verified and linked successfully.${fromUsername ? ` Linked username: @${fromUsername}.` : ''}`,
+                        `✅ Telegram verified and linked successfully.${fromUsername ? ` Linked username: @${fromUsername}.` : ''} You can now chat with FlowMind here.`,
                     );
                 } catch (error: any) {
                     console.error('Telegram verification error:', error);
@@ -105,6 +101,22 @@ export async function POST(req: Request) {
                         chatId,
                         'Verification failed due to a temporary error. Please try linking again from dashboard.',
                     );
+                }
+            })();
+
+            return NextResponse.json({ ok: true });
+        }
+
+        if (isStartCommand(text)) {
+            void (async () => {
+                try {
+                    await sendTelegramMessage(
+                        telegramToken,
+                        chatId,
+                        "Welcome to FlowMind. Please enter your 6-digit verification code from the dashboard to link this Telegram account.",
+                    );
+                } catch (error) {
+                    console.error('Telegram start prompt error:', error);
                 }
             })();
 

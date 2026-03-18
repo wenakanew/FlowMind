@@ -15,6 +15,7 @@ interface LinkTelegramResponse {
   message: string;
   pendingStart?: boolean;
   startUrl?: string | null;
+  verificationCode?: string;
 }
 
 interface FeedbackState {
@@ -22,6 +23,7 @@ interface FeedbackState {
   text: string;
   actionLabel?: string;
   actionHref?: string;
+  verificationCode?: string;
 }
 
 export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLinkModalProps) {
@@ -124,6 +126,7 @@ export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLi
         text: data.message,
         actionLabel: data.pendingStart && data.startUrl ? "Open Telegram" : undefined,
         actionHref: data.pendingStart ? data.startUrl || undefined : undefined,
+        verificationCode: data.verificationCode,
       });
       window.dispatchEvent(new CustomEvent("flowmind:integrations-updated"));
     } catch (error) {
@@ -143,7 +146,7 @@ export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLi
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {hasExistingLinked
             ? "Only one Telegram account is allowed. Delete the current one before adding another."
-            : "Click Connect, then open Telegram and press Start in the bot chat to verify this account."}
+            : "Click Connect, copy the 6-digit code, open Telegram, press Start, then paste the code in chat."}
         </p>
 
         {hasExistingLinked ? (
@@ -205,18 +208,32 @@ export function TelegramLinkModal({ open, onClose, currentUsername }: TelegramLi
                   {feedback.text}
                 </p>
                 {feedback.actionHref && feedback.actionLabel && (
-                  <a
-                    href={feedback.actionHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent("flowmind:integrations-updated"));
-                      onClose();
-                    }}
-                    className="inline-flex rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                  >
-                    {feedback.actionLabel}
-                  </a>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={feedback.actionHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    >
+                      {feedback.actionLabel}
+                    </a>
+                    {feedback.verificationCode && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(feedback.verificationCode || "");
+                        }}
+                        className="inline-flex rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                      >
+                        Copy code
+                      </button>
+                    )}
+                  </div>
+                )}
+                {feedback.verificationCode && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold tracking-widest text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    Verification code: {feedback.verificationCode}
+                  </div>
                 )}
               </div>
             )}
