@@ -73,6 +73,7 @@ Set these in local `.env` and in Vercel Project Settings.
 - `NOTION_PENDING_TELEGRAM_LINKS_DB_ID` (required for Telegram verification)
 - `NOTION_PROVIDER` (`sdk` or `mcp`; currently default is `sdk`)
 - `NOTION_PROVIDER_ALLOW_SDK_FALLBACK` (`true` or `false`; used when `NOTION_PROVIDER=mcp` during migration)
+- `NOTION_PROVIDER_VERBOSE_LOGGING` (`true` enables per-operation provider logs)
 
 ### Notion Provider Migration (MCP-first roadmap)
 
@@ -83,6 +84,17 @@ FlowMind now routes app-level Notion operations through [lib/notion-provider.ts]
 - Safety fallback: controlled by `NOTION_PROVIDER_ALLOW_SDK_FALLBACK`
 
 This makes MCP adoption a focused adapter change rather than a full app rewrite.
+
+Health endpoint includes migration visibility:
+
+- [app/api/health/route.ts](app/api/health/route.ts) now reports `notionProvider` and `notionProviderMetrics`.
+
+Recommended staging config for MCP readiness checks:
+
+- `NOTION_PROVIDER=mcp`
+- `NOTION_PROVIDER_ALLOW_SDK_FALLBACK=false` (strict mode)
+
+In strict mode, any unimplemented MCP operation is blocked immediately so migration gaps are easy to identify.
 
 ### Telegram
 
