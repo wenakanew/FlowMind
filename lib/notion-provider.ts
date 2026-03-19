@@ -1,4 +1,11 @@
 import * as notionSdk from "@/lib/notion";
+import {
+  isNotionMcpConfigured,
+  mcpCreateTask,
+  mcpGetUserByEmail,
+  mcpUpdateTaskStatus,
+  mcpUpsertUser,
+} from "@/lib/notion-mcp-adapter";
 
 export type NotionProviderMode = "sdk" | "mcp";
 
@@ -8,6 +15,9 @@ interface ProviderOperationMetric {
   failures: number;
   blocked: number;
   fallbackToSdk: number;
+  mcpAttempts: number;
+  mcpSuccesses: number;
+  mcpFailures: number;
   lastError?: string;
   lastRunAt?: string;
 }
@@ -32,6 +42,9 @@ function ensureMetric(operation: string) {
       failures: 0,
       blocked: 0,
       fallbackToSdk: 0,
+      mcpAttempts: 0,
+      mcpSuccesses: 0,
+      mcpFailures: 0,
     };
   }
 
@@ -57,25 +70,58 @@ function logProviderModeOnce() {
   }
 }
 
-async function withNotionProvider<T>(operation: string, sdkCall: () => Promise<T>): Promise<T> {
+async function withNotionProvider<T>(
+  operation: string,
+  sdkCall: () => Promise<T>,
+  options?: {
+    mcpCall?: () => Promise<T>;
+  },
+): Promise<T> {
   logProviderModeOnce();
   const metric = ensureMetric(operation);
   metric.attempts += 1;
   metric.lastRunAt = new Date().toISOString();
 
-  // MCP adapter implementation is the next migration step.
-  // For now, when mcp is selected we either fallback to SDK (default) or fail fast.
-  if (ACTIVE_PROVIDER === "mcp" && !MCP_SDK_FALLBACK_ALLOWED) {
-    metric.blocked += 1;
-    metric.failures += 1;
-    throw new Error(
-      `[NotionProvider] Operation '${operation}' blocked: NOTION_PROVIDER=mcp but MCP adapter is not wired yet and SDK fallback is disabled.`,
-    );
-  }
-
   if (ACTIVE_PROVIDER === "mcp") {
-    metric.fallbackToSdk += 1;
-    logProviderEvent(operation, "mcp-selected-fallback-to-sdk");
+    const canUseMcp = Boolean(options?.mcpCall) && isNotionMcpConfigured();
+
+    if (canUseMcp) {
+      metric.mcpAttempts += 1;
+      logProviderEvent(operation, "mcp-selected");
+      try {
+        const mcpResult = await options!.mcpCall!();
+        metric.mcpSuccesses += 1;
+        metric.successes += 1;
+        metric.lastError = undefined;
+        return mcpResult;
+      } catch (mcpError) {
+        metric.mcpFailures += 1;
+        const mcpMessage = mcpError instanceof Error ? mcpError.message : String(mcpError);
+        metric.lastError = mcpMessage;
+
+        if (!MCP_SDK_FALLBACK_ALLOWED) {
+          metric.failures += 1;
+          throw mcpError;
+        }
+
+        metric.fallbackToSdk += 1;
+        logProviderEvent(operation, "mcp-failed-fallback-to-sdk", mcpMessage);
+      }
+    } else {
+      if (!MCP_SDK_FALLBACK_ALLOWED) {
+        metric.blocked += 1;
+        metric.failures += 1;
+        const reason = options?.mcpCall
+          ? "NOTION_MCP_ENDPOINT is not configured"
+          : "MCP adapter not implemented for this operation";
+        throw new Error(
+          `[NotionProvider] Operation '${operation}' blocked in strict MCP mode: ${reason}.`,
+        );
+      }
+
+      metric.fallbackToSdk += 1;
+      logProviderEvent(operation, "mcp-selected-fallback-to-sdk", "mcp unavailable");
+    }
   } else {
     logProviderEvent(operation, "sdk-selected");
   }
@@ -96,6 +142,7 @@ export function getNotionProviderInfo() {
   return {
     activeProvider: ACTIVE_PROVIDER,
     mcpMigrationMode: ACTIVE_PROVIDER === "mcp",
+    mcpEndpointConfigured: isNotionMcpConfigured(),
     sdkFallbackAllowed: MCP_SDK_FALLBACK_ALLOWED,
     verboseLogging: PROVIDER_VERBOSE_LOGGING,
   };
@@ -114,19 +161,56 @@ export async function getProjects(...args: Parameters<typeof notionSdk.getProjec
 }
 
 export async function createTask(...args: Parameters<typeof notionSdk.createTask>) {
-  return withNotionProvider("createTask", () => notionSdk.createTask(...args));
+  return withNotionProvider(
+    "createTask",
+    () => notionSdk.createTask(...args),
+    {
+      mcpCall: () =>
+        mcpCreateTask({
+          title: args[0],
+          status: args[1],
+          owner: args[2],
+          deadline: args[3],
+        }),
+    },
+  );
 }
 
 export async function updateTaskStatus(...args: Parameters<typeof notionSdk.updateTaskStatus>) {
-  return withNotionProvider("updateTaskStatus", () => notionSdk.updateTaskStatus(...args));
+  return withNotionProvider(
+    "updateTaskStatus",
+    () => notionSdk.updateTaskStatus(...args),
+    {
+      mcpCall: () =>
+        mcpUpdateTaskStatus({
+          taskId: args[0],
+          status: args[1],
+        }),
+    },
+  );
 }
 
 export async function getUserByEmail(...args: Parameters<typeof notionSdk.getUserByEmail>) {
-  return withNotionProvider("getUserByEmail", () => notionSdk.getUserByEmail(...args));
+  return withNotionProvider(
+    "getUserByEmail",
+    () => notionSdk.getUserByEmail(...args),
+    {
+      mcpCall: () =>
+        mcpGetUserByEmail({
+          email: args[0],
+        }),
+    },
+  );
 }
 
 export async function upsertUser(...args: Parameters<typeof notionSdk.upsertUser>) {
-  return withNotionProvider("upsertUser", () => notionSdk.upsertUser(...args));
+  return withNotionProvider(
+    "upsertUser",
+    () => notionSdk.upsertUser(...args),
+    {
+      mcpCall: () => mcpUpsertUser(args[0]),
+    },
+  );
 }
 
 export async function getUserByTelegramIdentifier(...args: Parameters<typeof notionSdk.getUserByTelegramIdentifier>) {

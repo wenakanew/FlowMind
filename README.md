@@ -74,6 +74,9 @@ Set these in local `.env` and in Vercel Project Settings.
 - `NOTION_PROVIDER` (`sdk` or `mcp`; currently default is `sdk`)
 - `NOTION_PROVIDER_ALLOW_SDK_FALLBACK` (`true` or `false`; used when `NOTION_PROVIDER=mcp` during migration)
 - `NOTION_PROVIDER_VERBOSE_LOGGING` (`true` enables per-operation provider logs)
+- `NOTION_MCP_ENDPOINT` (HTTP endpoint for Notion MCP JSON-RPC bridge)
+- `NOTION_MCP_AUTH_TOKEN` (optional bearer token for MCP endpoint)
+- `NOTION_MCP_TOOL_PREFIX` (tool namespace prefix, default `notion`)
 
 ### Notion Provider Migration (MCP-first roadmap)
 
@@ -88,6 +91,13 @@ This makes MCP adoption a focused adapter change rather than a full app rewrite.
 Health endpoint includes migration visibility:
 
 - [app/api/health/route.ts](app/api/health/route.ts) now reports `notionProvider` and `notionProviderMetrics`.
+
+Current MCP-backed provider operations:
+
+- `createTask`
+- `updateTaskStatus`
+- `getUserByEmail`
+- `upsertUser`
 
 Recommended staging config for MCP readiness checks:
 
