@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserByEmail, upsertUser } from "@/lib/notion";
+import { getUserByEmail, upsertUser } from "@/lib/notion-provider";
 import { NotionUser } from "@/lib/types/notion";
 
 interface SyncUserBody {

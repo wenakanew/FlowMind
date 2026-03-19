@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upsertUser, getUserByEmail } from "@/lib/notion";
+import { upsertUser, getUserByEmail } from "@/lib/notion-provider";
 
 export async function POST(req: NextRequest) {
   try {

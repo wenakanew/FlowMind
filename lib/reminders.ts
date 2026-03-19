@@ -1,4 +1,4 @@
-import { getTasks, updateTaskStatus } from "@/lib/notion";
+import { getTasks, updateTaskStatus } from "@/lib/notion-provider";
 import { sendTelegramBotMessage, sendWhatsAppMessage } from "@/lib/messaging";
 
 interface DispatchInput {

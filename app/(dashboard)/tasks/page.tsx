@@ -1,4 +1,4 @@
-import { getTasks } from "@/lib/notion";
+import { getTasks } from "@/lib/notion-provider";
 
 export default async function TasksPage() {
   const tasks = await getTasks().catch(() => []);

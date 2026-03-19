@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { runAgent } from '@/lib/ai';
-import { upsertUser } from '@/lib/notion';
-import { getUserByTelegramIdentifier } from '@/lib/notion';
+import { upsertUser } from '@/lib/notion-provider';
+import { getUserByTelegramIdentifier } from '@/lib/notion-provider';
 import { consumePendingTelegramLink } from '@/lib/telegram-link-verification';
 import { dispatchDueRemindersForUser } from '@/lib/reminders';
 

@@ -1,4 +1,4 @@
-import { getProjects } from "@/lib/notion";
+import { getProjects } from "@/lib/notion-provider";
 
 export default async function ProjectsPage() {
   const projects = await getProjects().catch(() => []);

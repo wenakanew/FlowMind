@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { runAgent } from "@/lib/ai";
-import { getUserByWhatsAppNumber } from "@/lib/notion";
+import { getUserByWhatsAppNumber } from "@/lib/notion-provider";
 import { dispatchDueRemindersForUser } from "@/lib/reminders";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

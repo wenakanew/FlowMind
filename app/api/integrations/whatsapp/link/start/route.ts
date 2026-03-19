@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { upsertUser } from "@/lib/notion";
-import { getUserByEmail } from "@/lib/notion";
+import { upsertUser } from "@/lib/notion-provider";
+import { getUserByEmail } from "@/lib/notion-provider";
 import { createPendingWhatsAppLink } from "@/lib/whatsapp-link-verification";
 
 interface StartBody {

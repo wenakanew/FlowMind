@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { OverviewConnectSection } from "@/components/dashboard/overview-connect-section";
-import { getTasks, getProjects } from "@/lib/notion";
+import { getTasks, getProjects } from "@/lib/notion-provider";
 
 export default async function DashboardOverview() {
   const [tasks, projects] = await Promise.all([

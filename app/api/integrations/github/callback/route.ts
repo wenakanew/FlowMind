@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserByEmail, upsertUser } from "@/lib/notion";
+import { getUserByEmail, upsertUser } from "@/lib/notion-provider";
 
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
 export const dynamic = "force-dynamic";

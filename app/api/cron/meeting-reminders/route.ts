@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTasks, getUserByEmail, updateTaskStatus } from "@/lib/notion";
+import { getTasks, getUserByEmail, updateTaskStatus } from "@/lib/notion-provider";
 import { sendTelegramBotMessage, sendWhatsAppMessage } from "@/lib/messaging";
 
 export const dynamic = "force-dynamic";

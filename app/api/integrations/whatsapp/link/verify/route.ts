@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { upsertUser } from "@/lib/notion";
+import { upsertUser } from "@/lib/notion-provider";
 import { consumePendingWhatsAppLink, getPendingWhatsAppLink } from "@/lib/whatsapp-link-verification";
 
 interface VerifyBody {

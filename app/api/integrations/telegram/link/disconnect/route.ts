@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { upsertUser } from "@/lib/notion";
+import { upsertUser } from "@/lib/notion-provider";
 
 interface DisconnectBody {
   email?: string;

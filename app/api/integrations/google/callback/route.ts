@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserByEmail, upsertUser } from "@/lib/notion";
+import { getUserByEmail, upsertUser } from "@/lib/notion-provider";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const dynamic = "force-dynamic";

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import { getTasks, createTask, getUserByEmail } from './notion';
+import { getTasks, createTask, getUserByEmail } from './notion-provider';
 import {
     githubCreatePullRequest,
     githubCreateRepo,
