@@ -78,13 +78,13 @@ Set these in local `.env` and in Vercel Project Settings.
 - `NOTION_MCP_AUTH_TOKEN` (optional bearer token for MCP endpoint)
 - `NOTION_MCP_TOOL_PREFIX` (tool namespace prefix, default `notion`)
 
-### Notion Provider Migration (MCP-first roadmap)
+### Notion Provider (MCP-first)
 
 FlowMind now routes app-level Notion operations through [lib/notion-provider.ts](lib/notion-provider.ts), a provider layer introduced to support MCP-first migration.
 
-- Current runtime default: `sdk`
-- Migration mode: set `NOTION_PROVIDER=mcp`
-- Safety fallback: controlled by `NOTION_PROVIDER_ALLOW_SDK_FALLBACK`
+- Current runtime default: `mcp`
+- Strict mode default: `NOTION_PROVIDER_ALLOW_SDK_FALLBACK=false`
+- Optional emergency fallback: set `NOTION_PROVIDER_ALLOW_SDK_FALLBACK=true`
 
 This makes MCP adoption a focused adapter change rather than a full app rewrite.
 
@@ -94,17 +94,23 @@ Health endpoint includes migration visibility:
 
 Current MCP-backed provider operations:
 
+- `getTasks`
+- `getProjects`
 - `createTask`
 - `updateTaskStatus`
 - `getUserByEmail`
 - `upsertUser`
+- `getUserByTelegramIdentifier`
+- `getUserByWhatsAppNumber`
+- `createPendingTelegramLink`
+- `consumePendingTelegramLink`
 
-Recommended staging config for MCP readiness checks:
+Recommended staging/production config:
 
 - `NOTION_PROVIDER=mcp`
 - `NOTION_PROVIDER_ALLOW_SDK_FALLBACK=false` (strict mode)
 
-In strict mode, any unimplemented MCP operation is blocked immediately so migration gaps are easy to identify.
+In strict mode, operations run on MCP only and fail fast if MCP is not available.
 
 ### Telegram
 

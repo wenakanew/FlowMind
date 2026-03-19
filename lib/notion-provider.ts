@@ -1,5 +1,9 @@
 import * as notionSdk from "@/lib/notion";
 import {
+  mcpGetProjects,
+  mcpGetTasks,
+  mcpGetUserByTelegramIdentifier,
+  mcpGetUserByWhatsAppNumber,
   isNotionMcpConfigured,
   mcpCreateTask,
   mcpGetUserByEmail,
@@ -24,10 +28,10 @@ interface ProviderOperationMetric {
 
 type ProviderMetricsMap = Record<string, ProviderOperationMetric>;
 
-const NOTION_PROVIDER_ENV = (process.env.NOTION_PROVIDER || "sdk").trim().toLowerCase();
+const NOTION_PROVIDER_ENV = (process.env.NOTION_PROVIDER || "mcp").trim().toLowerCase();
 const ACTIVE_PROVIDER: NotionProviderMode = NOTION_PROVIDER_ENV === "mcp" ? "mcp" : "sdk";
 const MCP_SDK_FALLBACK_ALLOWED =
-  (process.env.NOTION_PROVIDER_ALLOW_SDK_FALLBACK || "true").trim().toLowerCase() !== "false";
+  (process.env.NOTION_PROVIDER_ALLOW_SDK_FALLBACK || "false").trim().toLowerCase() !== "false";
 const PROVIDER_VERBOSE_LOGGING =
   (process.env.NOTION_PROVIDER_VERBOSE_LOGGING || "false").trim().toLowerCase() === "true";
 
@@ -153,11 +157,23 @@ export function getNotionProviderMetrics() {
 }
 
 export async function getTasks(...args: Parameters<typeof notionSdk.getTasks>) {
-  return withNotionProvider("getTasks", () => notionSdk.getTasks(...args));
+  return withNotionProvider(
+    "getTasks",
+    () => notionSdk.getTasks(...args),
+    {
+      mcpCall: () => mcpGetTasks({ statusFilter: args[0] }),
+    },
+  );
 }
 
 export async function getProjects(...args: Parameters<typeof notionSdk.getProjects>) {
-  return withNotionProvider("getProjects", () => notionSdk.getProjects(...args));
+  return withNotionProvider(
+    "getProjects",
+    () => notionSdk.getProjects(...args),
+    {
+      mcpCall: () => mcpGetProjects({ statusFilter: args[0] }),
+    },
+  );
 }
 
 export async function createTask(...args: Parameters<typeof notionSdk.createTask>) {
@@ -214,9 +230,27 @@ export async function upsertUser(...args: Parameters<typeof notionSdk.upsertUser
 }
 
 export async function getUserByTelegramIdentifier(...args: Parameters<typeof notionSdk.getUserByTelegramIdentifier>) {
-  return withNotionProvider("getUserByTelegramIdentifier", () => notionSdk.getUserByTelegramIdentifier(...args));
+  return withNotionProvider(
+    "getUserByTelegramIdentifier",
+    () => notionSdk.getUserByTelegramIdentifier(...args),
+    {
+      mcpCall: () =>
+        mcpGetUserByTelegramIdentifier({
+          chatIdOrUsername: args[0],
+        }),
+    },
+  );
 }
 
 export async function getUserByWhatsAppNumber(...args: Parameters<typeof notionSdk.getUserByWhatsAppNumber>) {
-  return withNotionProvider("getUserByWhatsAppNumber", () => notionSdk.getUserByWhatsAppNumber(...args));
+  return withNotionProvider(
+    "getUserByWhatsAppNumber",
+    () => notionSdk.getUserByWhatsAppNumber(...args),
+    {
+      mcpCall: () =>
+        mcpGetUserByWhatsAppNumber({
+          phone: args[0],
+        }),
+    },
+  );
 }

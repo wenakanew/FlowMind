@@ -1,4 +1,13 @@
-import type { NotionTask, NotionUser } from "@/lib/types/notion";
+import type { NotionProject, NotionTask, NotionUser } from "@/lib/types/notion";
+
+export interface PendingTelegramLink {
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  token: string;
+  createdAt: number;
+  expiresAt: number;
+}
 
 interface McpJsonRpcSuccess<T> {
   jsonrpc?: string;
@@ -101,6 +110,14 @@ export async function mcpCreateTask(input: {
   return callNotionMcpTool<NotionTask>("createTask", input);
 }
 
+export async function mcpGetTasks(input: { statusFilter?: string } = {}): Promise<NotionTask[]> {
+  return callNotionMcpTool<NotionTask[]>("getTasks", input);
+}
+
+export async function mcpGetProjects(input: { statusFilter?: string } = {}): Promise<NotionProject[]> {
+  return callNotionMcpTool<NotionProject[]>("getProjects", input);
+}
+
 export async function mcpUpdateTaskStatus(input: { taskId: string; status: string }): Promise<NotionTask | null> {
   return callNotionMcpTool<NotionTask | null>("updateTaskStatus", input);
 }
@@ -124,4 +141,27 @@ export async function mcpUpsertUser(input: {
   googleCalendarRefreshToken?: string;
 }): Promise<NotionUser> {
   return callNotionMcpTool<NotionUser>("upsertUser", input);
+}
+
+export async function mcpGetUserByTelegramIdentifier(input: {
+  chatIdOrUsername: string | number;
+}): Promise<NotionUser | null> {
+  return callNotionMcpTool<NotionUser | null>("getUserByTelegramIdentifier", input);
+}
+
+export async function mcpGetUserByWhatsAppNumber(input: { phone: string }): Promise<NotionUser | null> {
+  return callNotionMcpTool<NotionUser | null>("getUserByWhatsAppNumber", input);
+}
+
+export async function mcpCreatePendingTelegramLink(input: {
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  preferredCode?: string;
+}): Promise<string> {
+  return callNotionMcpTool<string>("createPendingTelegramLink", input);
+}
+
+export async function mcpConsumePendingTelegramLink(input: { token: string }): Promise<PendingTelegramLink | null> {
+  return callNotionMcpTool<PendingTelegramLink | null>("consumePendingTelegramLink", input);
 }
