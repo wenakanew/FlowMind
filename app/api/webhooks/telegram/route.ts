@@ -4,6 +4,9 @@ import { upsertUser } from '@/lib/notion';
 import { getUserByTelegramIdentifier } from '@/lib/notion';
 import { consumePendingTelegramLink } from '@/lib/telegram-link-verification';
 import { dispatchDueRemindersForUser } from '@/lib/reminders';
+import { telegramWebhookSchema } from '@/lib/schemas/telegram-webhook';
+import { telegramClient } from '@/lib/telegram-client';
+import { ZodError } from 'zod';
 
 function getFriendlyAiErrorMessage(error: unknown) {
     const raw = error instanceof Error ? error.message : String(error ?? "");
@@ -28,15 +31,7 @@ async function sendTelegramMessage(token: string, chatId: number, text: string, 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
             
-            const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    text,
-                }),
-                signal: controller.signal,
-            });
+            const response = await telegramClient.sendMessage(token, chatId, text, controller.signal);
             
             clearTimeout(timeoutId);
             
@@ -87,7 +82,8 @@ export async function POST(req: Request) {
     const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
 
     try {
-        const body = await req.json();
+        const rawBody = await req.json();
+        const body = telegramWebhookSchema.parse(rawBody);
 
         // Telegram typically sends messages inside `update.message`
         if (!body.message || !body.message.text) {
@@ -159,20 +155,16 @@ export async function POST(req: Request) {
                     );
                 } catch (error) {
                     console.error('Telegram start prompt error:', error);
-                    // Try to send fallback message without retries (simple attempt)
-                    try {
-                        const fallbackUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-                        await fetch(fallbackUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                text: 'Welcome to FlowMind. Please link your account from the dashboard.',
-                            }),
-                        });
-                    } catch (fallbackError) {
-                        console.error('Fallback message also failed:', fallbackError);
-                    }
+                        // Try to send fallback message without retries (simple attempt)
+                        try {
+                            await telegramClient.sendMessage(
+                                telegramToken,
+                                chatId,
+                                'Welcome to FlowMind. Please link your account from the dashboard.',
+                            );
+                        } catch (fallbackError) {
+                            console.error('Fallback message also failed:', fallbackError);
+                        }
                 }
             })();
 
@@ -186,12 +178,7 @@ export async function POST(req: Request) {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for typing indicator
                     
-                    await fetch(`https://api.telegram.org/bot${telegramToken}/sendChatAction`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ chat_id: chatId, action: 'typing' }),
-                        signal: controller.signal,
-                    });
+                    await telegramClient.sendChatAction(telegramToken, chatId, 'typing', controller.signal);
                     
                     clearTimeout(timeoutId);
                 } catch (chatActionError) {
@@ -233,7 +220,6 @@ export async function POST(req: Request) {
                     replyText = getFriendlyAiErrorMessage(error);
                 }
 
-                const telegramApiUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
                 try {
                     await sendTelegramMessage(telegramToken, chatId, replyText);
                 } catch (sendError) {
@@ -246,6 +232,9 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ ok: true });
     } catch (error: any) {
+        if (error instanceof ZodError) {
+            return NextResponse.json({ ok: false, error: 'Invalid Telegram webhook payload' }, { status: 400 });
+        }
         console.error("Telegram webhook error:", error);
         // Always ack Telegram to avoid retry loops.
         return NextResponse.json({ ok: true });
