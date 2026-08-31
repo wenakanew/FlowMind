@@ -1,5 +1,6 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import { getTasks, createTask, getUserByEmail } from './notion';
+import { getGeminiClient } from './gemini-client';
 import {
     githubCreatePullRequest,
     githubCreateRepo,
@@ -32,18 +33,11 @@ interface ConversationHints {
     updatedAt: number;
 }
 
-let aiClient: GoogleGenAI | null = null;
 const conversationHintsByActor = new Map<string, ConversationHints>();
 const HINT_TTL_MS = 1000 * 60 * 60;
 
 export function getAIClient() {
-    if (!aiClient) {
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error('GEMINI_API_KEY is not set');
-        }
-        aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    }
-    return aiClient;
+    return getGeminiClient();
 }
 
 function normalize(value?: string) {

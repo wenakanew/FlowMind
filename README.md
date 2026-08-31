@@ -116,11 +116,31 @@ Set these in local `.env` and in Vercel Project Settings.
 
 ## Local Development
 
-1. Install dependencies.
-2. Add `.env` values.
-3. Run dev server.
+### Fresh clone setup
+
+1. Install dependencies:
+   - `npm ci`
+2. Copy env file and fill values:
+   - `cp .env.example .env`
+3. Run the app:
+   - `npm run dev`
 4. Open dashboard and sign in.
 5. Link integrations.
+
+### Build
+
+- `npm run build`
+
+### Running tests
+
+- `npm test`
+- Tests use local mocks from `tests/mocks` so no external API calls or keys are required.
+
+### Docker Compose
+
+Start app + Redis with one command:
+
+- `docker compose up --build`
 
 ## Production (Vercel)
 
@@ -167,6 +187,5 @@ Example commands:
 ## License
 
 Private project.
-
 
 

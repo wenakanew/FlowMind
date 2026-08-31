@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { runAgent } from "@/lib/ai";
 import { getUserByWhatsAppNumber } from "@/lib/notion";
 import { dispatchDueRemindersForUser } from "@/lib/reminders";
+import { whatsappWebhookSchema } from "@/lib/schemas/whatsapp-webhook";
+import { ZodError } from "zod";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -55,12 +57,8 @@ async function parseIncomingMessage(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { from, body } = await parseIncomingMessage(req);
-
-    if (!from || !body.trim()) {
-      // Acknowledge empty / non-text updates
-      return new NextResponse("", { status: 200 });
-    }
+    const incoming = await parseIncomingMessage(req);
+    const { from, body } = whatsappWebhookSchema.parse(incoming);
 
     const senderDisplay = from.replace("whatsapp:", "");
     console.log(`📲 WhatsApp message from ${senderDisplay}: "${body}"`);
@@ -114,6 +112,9 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "text/xml; charset=utf-8" },
     });
   } catch (error) {
+    if (error instanceof ZodError) {
+      return new NextResponse("", { status: 400 });
+    }
     console.error("WhatsApp webhook error:", error);
     const twiml = buildTwimlMessage("I hit a temporary issue. Please try again.");
     return new NextResponse(twiml, {

@@ -1,10 +1,23 @@
-import { Client } from '@notionhq/client';
+import { getNotionClient } from './notion-client';
 import { NotionTask, NotionProject, NotionUser } from './types/notion';
+export { getNotionClient } from './notion-client';
+
+export type NotionProperty =
+    | { type: 'title'; title?: Array<{ plain_text: string }> }
+    | { type: 'rich_text'; rich_text?: Array<{ plain_text: string }> }
+    | { type: 'status'; status?: { name: string } | null }
+    | { type: 'select'; select?: { name: string } | null }
+    | { type: 'date'; date?: { start: string } | null }
+    | { type: 'email'; email?: string | null }
+    | { type: 'number'; number?: number | null }
+    | { type: string; [key: string]: any };
+
+type NotionProperties = Record<string, NotionProperty>;
 
 interface UsersDatabaseContext {
     databaseId: string;
     dataSourceId: string;
-    properties: Record<string, any>;
+    properties: NotionProperties;
 }
 
 interface UpsertUserInput {
@@ -22,26 +35,15 @@ interface UpsertUserInput {
     googleCalendarRefreshToken?: string;
 }
 
-// Function to get or initialize the Notion client
-let _notionClient: Client | null = null;
-export function getNotionClient(): Client {
-    if (!_notionClient) {
-        if (!process.env.NOTION_API_KEY) {
-            throw new Error('NOTION_API_KEY is not set in environment variables.');
-        }
-        _notionClient = new Client({
-            auth: process.env.NOTION_API_KEY,
-        });
-    }
-    return _notionClient;
-}
-
 /**
  * Helper to extract title text from Notion's rich text array structure safely.
  */
-function extractTitle(property: any): string {
-    if (property?.type === 'title' && property.title?.length > 0) {
-        return property.title[0].plain_text;
+export function extractTitle(property: NotionProperty | undefined): string {
+    if (property?.type === 'title') {
+        const title = property.title;
+        if (Array.isArray(title) && title.length > 0) {
+            return title[0].plain_text;
+        }
     }
     return 'Untitled';
 }
@@ -59,11 +61,11 @@ function extractRichText(property: any): string | undefined {
 /**
  * Helper to extract status from a Notion status or select property.
  */
-function extractStatus(property: any): string {
-    if (property?.type === 'status' && property.status) {
+export function extractStatus(property: NotionProperty | undefined): string {
+    if (property?.type === 'status' && property.status?.name) {
         return property.status.name;
     }
-    if (property?.type === 'select' && property.select) {
+    if (property?.type === 'select' && property.select?.name) {
         return property.select.name;
     }
     return 'No Status';
@@ -72,14 +74,14 @@ function extractStatus(property: any): string {
 /**
  * Helper to extract a date string from a Notion date property.
  */
-function extractDate(property: any): string | undefined {
-    if (property?.type === 'date' && property.date) {
+export function extractDate(property: NotionProperty | undefined): string | undefined {
+    if (property?.type === 'date' && property.date?.start) {
         return property.date.start;
     }
     return undefined;
 }
 
-function normalizeDatabaseId(rawId: string): string {
+export function normalizeDatabaseId(rawId: string): string {
     const cleaned = rawId.replace(/-/g, '');
     return cleaned.length === 32
         ? `${cleaned.slice(0, 8)}-${cleaned.slice(8, 12)}-${cleaned.slice(12, 16)}-${cleaned.slice(16, 20)}-${cleaned.slice(20)}`
@@ -98,7 +100,7 @@ async function getDatabaseContext(rawId: string, label: string): Promise<UsersDa
         throw new Error(`No data source found for the specified Notion ${label} database.`);
     }
 
-    let properties: Record<string, any> = db?.properties ?? {};
+    let properties: NotionProperties = db?.properties ?? {};
 
     // In newer Notion data-source-backed databases, `database.properties` can be empty.
     // Pull schema from data source metadata, then fall back to a sample row shape.
@@ -132,17 +134,17 @@ async function getDatabaseContext(rawId: string, label: string): Promise<UsersDa
     };
 }
 
-function findFirstPropertyNameByType(properties: Record<string, any>, type: string, fallback: string): string {
+function findFirstPropertyNameByType(properties: NotionProperties, type: string, fallback: string): string {
     return Object.keys(properties).find((key) => properties[key]?.type === type) || fallback;
 }
 
-function hasProperty(properties: Record<string, any>, name: string, type?: string) {
+function hasProperty(properties: NotionProperties, name: string, type?: string) {
     const property = properties[name];
     if (!property) return false;
     return type ? property.type === type : true;
 }
 
-function findPropertyByName(properties: Record<string, any>, name: string) {
+function findPropertyByName(properties: NotionProperties, name: string) {
     const exact = Object.keys(properties).find((key) => key === name);
     if (exact) return exact;
 
@@ -151,7 +153,7 @@ function findPropertyByName(properties: Record<string, any>, name: string) {
 }
 
 function findPropertyByNameAndTypes(
-    properties: Record<string, any>,
+    properties: NotionProperties,
     name: string,
     allowedTypes: string[],
 ) {
@@ -166,7 +168,7 @@ function findPropertyByNameAndTypes(
 }
 
 function findPropertyByCandidateNamesAndTypes(
-    properties: Record<string, any>,
+    properties: NotionProperties,
     names: string[],
     allowedTypes: string[],
 ) {
@@ -189,7 +191,7 @@ function extractEmailOrRichText(property: any): string | undefined {
     return undefined;
 }
 
-function buildUserProperties(properties: Record<string, any>, input: UpsertUserInput) {
+function buildUserProperties(properties: NotionProperties, input: UpsertUserInput) {
     const result: Record<string, any> = {};
     const titleKey = findFirstPropertyNameByType(properties, 'title', 'Name');
 
