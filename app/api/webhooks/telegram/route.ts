@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { runAgent } from '@/lib/ai';
-import { upsertUser } from '@/lib/notion';
-import { getUserByTelegramIdentifier } from '@/lib/notion';
+import { upsertUser, getUserByTelegramIdentifier } from '@/lib/notion';
 import { consumePendingTelegramLink } from '@/lib/telegram-link-verification';
 import { dispatchDueRemindersForUser } from '@/lib/reminders';
 import { telegramWebhookSchema } from '@/lib/schemas/telegram-webhook';
 import { telegramClient } from '@/lib/telegram-client';
+import { logger } from '@/lib/logger';
 import { ZodError } from 'zod';
+
+const MODULE_NAME = 'TelegramWebhook';
 
 function getFriendlyAiErrorMessage(error: unknown) {
     const raw = error instanceof Error ? error.message : String(error ?? "");
@@ -29,7 +31,7 @@ async function sendTelegramMessage(token: string, chatId: number, text: string, 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
             
             const response = await telegramClient.sendMessage(token, chatId, text, controller.signal);
             
@@ -43,29 +45,25 @@ async function sendTelegramMessage(token: string, chatId: number, text: string, 
             lastError = new Error(`Telegram API returned ${response.status}: ${errorText}`);
             
             if (response.status >= 500 || response.status === 429) {
-                // Retry on server errors and rate limiting
                 if (attempt < maxRetries) {
-                    await new Promise(r => setTimeout(r, 1000 * attempt)); // Exponential backoff
+                    await new Promise(r => setTimeout(r, 1000 * attempt));
                     continue;
                 }
             } else {
-                // Non-retryable error
                 throw lastError;
             }
         } catch (error: any) {
             lastError = error;
-            console.warn(`Telegram send attempt ${attempt}/${maxRetries} failed:`, error.message);
+            logger.warn(MODULE_NAME, `Telegram send attempt ${attempt}/${maxRetries} failed`, { chatId }, error);
             
             if (attempt < maxRetries) {
-                // Retry on network errors
                 const delayMs = 1000 * attempt;
-                console.log(`Retrying in ${delayMs}ms...`);
                 await new Promise(r => setTimeout(r, delayMs));
             }
         }
     }
     
-    console.error('Failed to send Telegram message after all retries:', lastError);
+    logger.error(MODULE_NAME, 'Failed to send Telegram message after all retries', { chatId }, lastError);
     throw lastError;
 }
 
@@ -85,9 +83,7 @@ export async function POST(req: Request) {
         const rawBody = await req.json();
         const body = telegramWebhookSchema.parse(rawBody);
 
-        // Telegram typically sends messages inside `update.message`
         if (!body.message || !body.message.text) {
-            // Acknowledge other types of updates without processing
             return NextResponse.json({ ok: true });
         }
 
@@ -96,10 +92,15 @@ export async function POST(req: Request) {
         const fromUsername = body.message.from?.username as string | undefined;
         const fromId = body.message.from?.id as number | undefined;
 
-        console.log(`\n📲 Received Telegram message from chat ${chatId}: "${text}"`);
+        logger.info(MODULE_NAME, `Received Telegram message from chat ${chatId}`, {
+            chatId,
+            fromUsername,
+            fromId,
+            textLength: text.length,
+        });
 
         if (!telegramToken) {
-            console.error("TELEGRAM_BOT_TOKEN is missing!");
+            logger.error(MODULE_NAME, "TELEGRAM_BOT_TOKEN environment variable is missing!");
             return NextResponse.json({ ok: true });
         }
 
@@ -123,8 +124,8 @@ export async function POST(req: Request) {
                         email: pending.email,
                         name: pending.name,
                         avatarUrl: pending.avatarUrl,
-                        telegramUsername: fromUsername || undefined, // Only store actual username, not fallback
-                        telegramChatId: String(fromId || chatId), // Chat ID is always primary
+                        telegramUsername: fromUsername || undefined,
+                        telegramChatId: String(fromId || chatId),
                     });
 
                     await sendTelegramMessage(
@@ -133,7 +134,7 @@ export async function POST(req: Request) {
                         `✅ Telegram verified and linked successfully.${fromUsername ? ` Linked as @${fromUsername}.` : ' Linked to your chat ID.'} You can now chat with FlowMind here.`,
                     );
                 } catch (error: any) {
-                    console.error('Telegram verification error:', error);
+                    logger.error(MODULE_NAME, 'Telegram verification error', { chatId }, error);
                     await sendTelegramMessage(
                         telegramToken,
                         chatId,
@@ -154,41 +155,35 @@ export async function POST(req: Request) {
                         "Welcome to FlowMind. Please enter your 6-digit verification code from the dashboard to link this Telegram account.",
                     );
                 } catch (error) {
-                    console.error('Telegram start prompt error:', error);
-                        // Try to send fallback message without retries (simple attempt)
-                        try {
-                            await telegramClient.sendMessage(
-                                telegramToken,
-                                chatId,
-                                'Welcome to FlowMind. Please link your account from the dashboard.',
-                            );
-                        } catch (fallbackError) {
-                            console.error('Fallback message also failed:', fallbackError);
-                        }
+                    logger.error(MODULE_NAME, 'Telegram start prompt error', { chatId }, error);
+                    try {
+                        await telegramClient.sendMessage(
+                            telegramToken,
+                            chatId,
+                            'Welcome to FlowMind. Please link your account from the dashboard.',
+                        );
+                    } catch (fallbackError) {
+                        logger.error(MODULE_NAME, 'Fallback start message failed', { chatId }, fallbackError);
+                    }
                 }
             })();
 
             return NextResponse.json({ ok: true });
         }
 
-        // Respond to Telegram immediately to avoid webhook timeout retries.
         void (async () => {
             try {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for typing indicator
-                    
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
                     await telegramClient.sendChatAction(telegramToken, chatId, 'typing', controller.signal);
-                    
                     clearTimeout(timeoutId);
                 } catch (chatActionError) {
-                    console.warn('Telegram chat action failed, continuing:', chatActionError);
+                    logger.warn(MODULE_NAME, 'Telegram chat action typing indicator failed', { chatId }, chatActionError);
                 }
 
                 let replyText = "I am online, but I hit a temporary processing issue. Please try again.";
                 try {
-                    // Lookup user by Telegram Chat ID first (works for accounts without usernames),
-                    // then fall back to username if Chat ID match fails
                     const linkedUser = await getUserByTelegramIdentifier(fromId || chatId);
 
                     if (!linkedUser?.email) {
@@ -202,7 +197,7 @@ export async function POST(req: Request) {
                                 whatsappNumber: linkedUser.whatsappNumber,
                             });
                         } catch (reminderError) {
-                            console.error('Reminder dispatch warning (Telegram):', reminderError);
+                            logger.warn(MODULE_NAME, 'Reminder dispatch warning (Telegram)', { chatId }, reminderError);
                         }
 
                         const aiReply = await runAgent(text, {
@@ -216,27 +211,27 @@ export async function POST(req: Request) {
                         }
                     }
                 } catch (error: any) {
-                    console.error("AI processing error:", error);
+                    logger.error(MODULE_NAME, "AI processing error (Telegram)", { chatId }, error);
                     replyText = getFriendlyAiErrorMessage(error);
                 }
 
                 try {
                     await sendTelegramMessage(telegramToken, chatId, replyText);
                 } catch (sendError) {
-                    console.error("Failed to send final message to Telegram:", sendError);
+                    logger.error(MODULE_NAME, "Failed to send final response to Telegram", { chatId }, sendError);
                 }
             } catch (error: any) {
-                console.error("Telegram background reply error:", error);
+                logger.error(MODULE_NAME, "Telegram background reply unhandled error", { chatId }, error);
             }
         })();
 
         return NextResponse.json({ ok: true });
     } catch (error: any) {
         if (error instanceof ZodError) {
+            logger.warn(MODULE_NAME, 'Invalid Telegram webhook payload', { errors: error.errors });
             return NextResponse.json({ ok: false, error: 'Invalid Telegram webhook payload' }, { status: 400 });
         }
-        console.error("Telegram webhook error:", error);
-        // Always ack Telegram to avoid retry loops.
+        logger.error(MODULE_NAME, "Telegram webhook outer error", {}, error);
         return NextResponse.json({ ok: true });
     }
 }

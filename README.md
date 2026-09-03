@@ -15,13 +15,15 @@ It helps you:
 
 ## Core Stack
 
-- Next.js (App Router)
-- TypeScript
-- Gemini API
+- Next.js 16 (App Router)
+- React 19 & TypeScript
+- Gemini API (`@google/genai`)
 - Firebase Auth (Google sign-in)
 - Notion as operational data store
 - Telegram Bot API
 - Twilio WhatsApp Sandbox
+- Vitest for unit & integration testing
+- Structured JSON Logger (`lib/logger.ts`)
 
 ## Current Working Flow
 
@@ -57,11 +59,13 @@ Required for OAuth verification:
 
 Set these in local `.env` and in Vercel Project Settings.
 
-### App
+### App & Observability
 
 - `NEXT_PUBLIC_APP_URL`
 - `GEMINI_API_KEY`
 - `GEMINI_MODEL_NAME`
+- `CRON_SECRET` (used for protecting reminder dispatch cron API routes)
+- `SENTRY_DSN` (optional, for production error tracking via `lib/logger.ts`)
 
 ### Notion
 
@@ -70,7 +74,7 @@ Set these in local `.env` and in Vercel Project Settings.
 - `NOTION_PROJECTS_DATABASE_ID`
 - `NOTION_KNOWLEDGE_DATABASE_ID`
 - `NOTION_USERS_DATABASE_ID`
-- `NOTION_PENDING_TELEGRAM_LINKS_DB_ID` (required for Telegram verification)
+- `NOTION_PENDING_TELEGRAM_LINKS_DB_ID` (required for Telegram verification code storage)
 
 ### Telegram
 
@@ -127,14 +131,28 @@ Set these in local `.env` and in Vercel Project Settings.
 4. Open dashboard and sign in.
 5. Link integrations.
 
-### Build
+### Build & Typecheck
 
 - `npm run build`
+- `npx tsc --noEmit`
 
-### Running tests
+### Code Quality & Testing
 
-- `npm test`
-- Tests use local mocks from `tests/mocks` so no external API calls or keys are required.
+- Run unit & integration tests: `npm test`
+- Run test suite with coverage report: `npm run test:coverage`
+- Run linter: `npm run lint`
+- Run dependency audit: `npm audit --audit-level=high`
+
+### CI/CD Pipeline
+
+Continuous Integration runs automatically on GitHub Actions ([.github/workflows/ci.yml](file:///.github/workflows/ci.yml)):
+1. `npm ci` (Dependency installation)
+2. `npm run lint` (ESLint style check)
+3. `npx tsc --noEmit` (TypeScript type check)
+4. `npm audit --audit-level=high` (Security dependency audit)
+5. `npm test` (Vitest test suite execution)
+
+Automated weekly dependency updates are handled via Dependabot ([.github/dependabot.yml](file:///.github/dependabot.yml)).
 
 ### Docker Compose
 
@@ -154,7 +172,7 @@ Start app + Redis with one command:
        - `Avatar URL` (URL)
        - `Created At` (Number) - Unix timestamp
        - `Expires At` (Number) - Unix timestamp (30 min TTL)
-3. Add all environment variables including `NOTION_PENDING_TELEGRAM_LINKS_DB_ID`.
+3. Add all environment variables including `NOTION_PENDING_TELEGRAM_LINKS_DB_ID` and `CRON_SECRET`.
 4. Deploy to production.
 5. Set provider callbacks and webhooks:
    - Google callback: `https://flowmind.kaniujeffray.me/api/integrations/google/callback`
@@ -182,10 +200,8 @@ Example commands:
 ## Notes
 
 - Data access is user-scoped for linked messaging identities.
-- If an integration fails, verify callback URL and env values first.
+- Structured logging format (`lib/logger.ts`) emits JSON payloads for production observability.
 
 ## License
 
 Private project.
-
-

@@ -3,9 +3,10 @@ import { runAgent } from "@/lib/ai";
 import { getUserByWhatsAppNumber } from "@/lib/notion";
 import { dispatchDueRemindersForUser } from "@/lib/reminders";
 import { whatsappWebhookSchema } from "@/lib/schemas/whatsapp-webhook";
+import { logger } from "@/lib/logger";
 import { ZodError } from "zod";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+const MODULE_NAME = "WhatsAppWebhook";
 
 function getFriendlyAiErrorMessage(error: unknown) {
   const raw = error instanceof Error ? error.message : String(error ?? "");
@@ -53,21 +54,20 @@ async function parseIncomingMessage(req: Request) {
   };
 }
 
-// ─── Webhook handler ─────────────────────────────────────────────────────────
-
 export async function POST(req: Request) {
   try {
     const incoming = await parseIncomingMessage(req);
     const { from, body } = whatsappWebhookSchema.parse(incoming);
 
     const senderDisplay = from.replace("whatsapp:", "");
-    console.log(`📲 WhatsApp message from ${senderDisplay}: "${body}"`);
+    logger.info(MODULE_NAME, `Received WhatsApp message from ${senderDisplay}`, { from, bodyLength: body.length });
 
     let replyText = "I'm online, but hit a temporary processing issue. Please try again.";
 
     try {
       const linkedUser = await getUserByWhatsAppNumber(from);
       if (!linkedUser?.email) {
+        logger.warn(MODULE_NAME, `Unlinked WhatsApp number attempt`, { from: senderDisplay });
         const twiml = buildTwimlMessage("This WhatsApp number is not linked to FlowMind yet. Please link WhatsApp from your dashboard first.");
         return new NextResponse(twiml, {
           status: 200,
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
           telegramChatId: linkedUser.telegramChatId,
         });
       } catch (error) {
-        console.error("Reminder dispatch warning (WhatsApp):", error);
+        logger.warn(MODULE_NAME, "Reminder dispatch warning (WhatsApp)", { userEmail: linkedUser.email }, error);
       }
 
       const aiReply = await Promise.race([
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
         replyText = aiReply;
       }
     } catch (error) {
-      console.error("AI processing error (WhatsApp):", error);
+      logger.error(MODULE_NAME, "AI processing error (WhatsApp)", { from: senderDisplay }, error);
       replyText = getFriendlyAiErrorMessage(error);
     }
 
@@ -113,9 +113,10 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     if (error instanceof ZodError) {
+      logger.warn(MODULE_NAME, "Invalid WhatsApp webhook payload structure", { errors: error.errors });
       return new NextResponse("", { status: 400 });
     }
-    console.error("WhatsApp webhook error:", error);
+    logger.error(MODULE_NAME, "WhatsApp webhook unhandled exception", {}, error);
     const twiml = buildTwimlMessage("I hit a temporary issue. Please try again.");
     return new NextResponse(twiml, {
       status: 200,
